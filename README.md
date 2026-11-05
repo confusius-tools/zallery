@@ -187,6 +187,20 @@ def gallery_retheme(fig, theme):
 artists and a mapping, and each returns such a context manager; combine several
 with `contextlib.ExitStack`.
 
+## Plotly figures
+
+A plotly figure that a cell shows, as its last expression or with `fig.show()`, is
+drawn on the page as in a notebook: zoom, pan and hover work. The example needs no
+renderer setup.
+
+- The light page shows the figure as made. The dark page draws it again with
+  plotly's `plotly_dark` template merged into the figure's own. Both drop the
+  paper background, so the figure sits on the page. Colors set on the figure
+  itself, not by its template, are the same in both schemes.
+- The page loads plotly.js from `cdn.plot.ly`, at the version of the plotly package
+  that made the figure.
+- A plotly figure gives no thumbnail: its example keeps the default one.
+
 ## HTML thumbnails
 
 An example without a figure can show an HTML output, such as a DataFrame or an
@@ -266,7 +280,8 @@ zallery writes Markdown pages; the Zensical site provides the rest, in
   `<examples>/_assets/default_thumb.svg` and `<examples>/_assets/default_thumb_dark.svg`.
 - Optionally, styles for the classes zallery emits: `examples-cards` and
   `examples-card-summary` on the index page, `gallery-output` and
-  `gallery-rich-output` around cell outputs, `gallery-binder` on the Binder
+  `gallery-rich-output` around cell outputs, `gallery-plotly` on plotly figures,
+  `gallery-binder` on the Binder
   badge. This repository's
   [`zensical.toml`](https://github.com/confusius-tools/zallery/blob/main/zensical.toml)
   and

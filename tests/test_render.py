@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 
 import nbformat
+import plotly.graph_objects as go
+import plotly.io as pio
 import pytest
+from plotly.offline import get_plotlyjs_version
 
 from zallery.render import render_notebook
 
@@ -430,6 +434,58 @@ def _html_cell(*tags: str, image: bool = False) -> nbformat.NotebookNode:
             nbformat.v4.new_output(output_type="display_data", data={"image/png": _PNG})
         )
     return cell
+
+
+def _render_plotly(tmp_path: Path, title: str, **layout: object) -> tuple[dict, str]:
+    """Render a cell that showed a plotly bar chart; return the figure and the page."""
+    figure = go.Figure(
+        go.Bar(x=[1, 2], y=[3, 4]), layout={"title": {"text": title}, **layout}
+    )
+    # The kernel sends what plotly's default renderer there gives: its mime type alone.
+    bundle = pio.renderers["plotly_mimetype"].to_mimebundle(figure.to_dict())
+    cell = nbformat.v4.new_code_cell("fig")
+    cell.outputs = [nbformat.v4.new_output(output_type="display_data", data=bundle)]
+    nb = nbformat.v4.new_notebook()
+    nb.cells.append(cell)
+    md_path, _ = render_notebook(
+        nb, nb, out_dir=tmp_path, base_name="ex", runtime_seconds=1.0
+    )
+    return bundle["application/vnd.plotly.v1+json"], md_path.read_text()
+
+
+def test_render_draws_a_plotly_figure_in_each_color_scheme(tmp_path: Path) -> None:
+    figure, md = _render_plotly(tmp_path, "Bars")
+
+    found = re.search(r'<script type="application/json"[^>]*>(.*?)</script>', md)
+    assert found is not None
+    shown = json.loads(found.group(1))
+    assert shown["data"] == figure["data"]
+    light, dark = shown["layouts"]["default"], shown["layouts"]["slate"]
+    assert light["title"] == dark["title"] == {"text": "Bars"}
+    font = figure["layout"]["template"]["layout"]["font"]["color"]
+    assert light["template"]["layout"]["font"]["color"] == font
+    dark_font = pio.templates["plotly_dark"].layout.font.color
+    assert dark["template"]["layout"]["font"]["color"] == dark_font
+    for layout in (light, dark):
+        assert layout["template"]["layout"]["paper_bgcolor"] == "rgba(0,0,0,0)"
+    assert f"https://cdn.plot.ly/plotly-{get_plotlyjs_version()}.min.js" in md
+
+
+def test_render_keeps_a_plotly_title_from_closing_its_script(tmp_path: Path) -> None:
+    _, md = _render_plotly(tmp_path, "a </script> b")
+
+    assert "<script" in md
+    assert md.count("</script>") == md.count("<script")
+
+
+@pytest.mark.parametrize(("layout", "height"), [({}, 525), ({"height": 300}, 300)])
+def test_render_gives_a_plotly_figure_the_height_plotly_draws_it_at(
+    tmp_path: Path, layout: dict[str, object], height: int
+) -> None:
+    """A figure without a height would collapse: it is sized to its element."""
+    _, md = _render_plotly(tmp_path, "Bars", **layout)
+
+    assert f'class="gallery-plotly" style="height: {height}px"' in md
 
 
 class _Thumbnailer:

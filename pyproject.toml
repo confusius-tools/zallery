@@ -48,6 +48,7 @@ build-backend = "uv_build"
 dev = [
     "codespell>=2.3.0",
     "numpydoc>=1.11.0",
+    "plotly>=7.1.0",
     "prek>=0.4.8",
     "pytest>=9.1.1",
     "pytest-cov>=6.0.0",
@@ -57,6 +58,7 @@ dev = [
 ]
 docs = [
     "pandas>=3.1.1",
+    "plotly>=7.1.0",
     "xarray>=2026.9.0",
 ]
 

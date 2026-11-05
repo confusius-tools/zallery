@@ -90,6 +90,20 @@ def test_cli_draws_each_page_with_its_matplotlib_palette(tmp_path: Path) -> None
     assert (255, 0, 0) not in dark
 
 
+@pytest.mark.slow
+def test_cli_draws_a_plotly_figure_on_its_page(tmp_path: Path) -> None:
+    project, examples = _make_project(tmp_path)
+    (examples / "io" / "hello.py").write_text(
+        "# %%\nimport plotly.graph_objects as go\n\ngo.Figure(go.Bar(y=[3, 4]))\n"
+    )
+
+    proc = _run(project)
+
+    assert proc.returncode == 0, f"stderr: {proc.stderr}\nstdout: {proc.stdout}"
+    markdown = (examples / "_built" / "io" / "hello.md").read_text(encoding="utf-8")
+    assert '<div id="zallery-plotly-1-0" class="gallery-plotly"' in markdown
+
+
 def _make_html_project(tmp_path: Path) -> tuple[Path, Path]:
     """Return a project asking for HTML thumbnails, with one HTML-only example."""
     project, examples = _make_project(tmp_path)

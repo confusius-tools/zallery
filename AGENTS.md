@@ -34,9 +34,10 @@ The docs site (`zensical.toml`, `docs/`) is small on purpose: the home page incl
 there shows one feature; a new example also needs a `nav` entry in `zensical.toml`.
 `binder/Dockerfile` is the environment mybinder.org builds for the Binder badges
 of the example pages; it installs the `docs` group.
-Libraries only the examples import (pandas, xarray) are in the `docs` dependency
-group, which `just gallery` installs. CI installs the default groups only, so `src`
-and `tests` must not import them.
+Libraries only the examples import (pandas, xarray, plotly) are in the `docs`
+dependency group, which `just gallery` installs. CI installs the default groups only,
+so `src` and `tests` must not import them. plotly is also in `dev`: tests draw real
+plotly figures, and `render.py` imports it only for a page that has one.
 
 ## Code map
 
@@ -88,6 +89,10 @@ src/zallery/
   makes it write no picture, so scripts are blocked by the page's content security
   policy instead. Without its own `--user-data-dir`, a browser the user has open
   takes over the command and no picture is written either.
+- In a kernel, plotly's default renderer sends its mime type alone, with no HTML or
+  text: zallery draws the figure itself. With `responsive: true`, a figure is as
+  high as its element, so the element gets the figure's height (525px by default,
+  as plotly's notebook renderer does), or it collapses to 0 on the first redraw.
 - Tab cells are written as raw HTML in the markup of `pymdownx.tabbed`, not with the
   `===` syntax: indented under `===`, an HTML output is parsed as Markdown text and
   mangled (styles, scripts, table cells). `md_in_html` is no help: it wraps the tab
