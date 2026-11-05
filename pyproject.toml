@@ -87,6 +87,10 @@ checks = [
 [tool.ruff]
 line-length = 88
 
+[tool.ruff.lint.per-file-ignores]
+# The last expression of a cell displays its value, as in a notebook.
+"docs/examples/**" = ["B018"]
+
 [tool.ty.src]
 include = ["src", "tests"]
 
