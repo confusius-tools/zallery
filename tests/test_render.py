@@ -323,16 +323,16 @@ def test_render_ignores_collapse_on_a_tab_cell(tmp_path: Path) -> None:
     ("tags", "opening"),
     [
         (["title: Sort the values"], '``` { .python title="Sort the values" }'),
-        (["highlight: 2 4-5"], '``` { .python hl_lines="2 4-5" }'),
-        (["title: Sort", "highlight: 1"], '``` { .python title="Sort" hl_lines="1" }'),
+        (["hl_lines: 2 4-5"], '``` { .python hl_lines="2 4-5" }'),
+        (["title: Sort", "hl_lines: 1"], '``` { .python title="Sort" hl_lines="1" }'),
         # A title cannot escape a quote: it is delimited by the kind it does not use.
         (['title: Say "hi"'], "``` { .python title='Say \"hi\"' }"),
         (['title: Say "hi", it\'s'], "``` { .python title=\"Say 'hi', it's\" }"),
         # Not line numbers: the tag is ignored instead of breaking the fence.
-        (["highlight: first"], "```python"),
+        (["hl_lines: first"], "```python"),
     ],
 )
-def test_render_writes_title_and_highlight_tags_as_fence_options(
+def test_render_writes_title_and_hl_lines_tags_as_fence_options(
     tmp_path: Path, tags: list[str], opening: str
 ) -> None:
     nb = nbformat.v4.new_notebook()

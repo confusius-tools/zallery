@@ -120,9 +120,9 @@ _HIGHLIGHT_LINES = re.compile(r"\d+(-\d+)?(\s+\d+(-\d+)?)*")
 def _code_fence(source: str, tags: set[str], *, annotate: bool) -> str:
     """Return the fenced code block of a code cell.
 
-    The tags `title: <text>` and `highlight: <lines>` become the `title` and
-    `hl_lines` options of the fence. A `highlight` value that is not a list of line
-    numbers and ranges is ignored.
+    The tags `title: <text>` and `hl_lines: <lines>` become the options of the same
+    name on the fence. An `hl_lines` value that is not a list of line numbers and
+    ranges is ignored.
 
     Parameters
     ----------
@@ -148,7 +148,7 @@ def _code_fence(source: str, tags: set[str], *, annotate: bool) -> str:
             title = title.replace('"', "'")
         quote = "'" if '"' in title else '"'
         options.append(f"title={quote}{title}{quote}")
-    lines = _tag_value(tags, "highlight")
+    lines = _tag_value(tags, "hl_lines")
     if lines is not None and _HIGHLIGHT_LINES.fullmatch(lines):
         options.append(f'hl_lines="{lines}"')
     opening = "``` { .python " + " ".join(options) + " }" if options else "```python"

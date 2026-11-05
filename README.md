@@ -103,8 +103,8 @@ Examples live under `<examples>/<section>/<name>.py`.
   Every tab runs, in order and in the same kernel. The `collapse` and `annotate`
   tags are ignored on a tab cell.
 - Tag a code cell with `title: <text>` to show a title above its code, and with
-  `highlight: <lines>` to highlight lines: numbers and ranges separated by spaces,
-  such as `highlight: 2 4-5`. Line 1 is the first line of the cell.
+  `hl_lines: <lines>` to highlight lines: numbers and ranges separated by spaces,
+  such as `hl_lines: 2 4-5`. Line 1 is the first line of the cell.
 - Tag a code cell with `annotate` to attach notes to its lines. End a line with a
   comment such as `# (1)!`, and write the notes as a numbered list in the Markdown
   cell that follows. zallery writes that cell directly under the code, above the
