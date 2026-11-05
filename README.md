@@ -106,25 +106,32 @@ Every example runs once, under a light matplotlib style. Each figure is then
 re-rendered for dark mode without re-executing anything: zallery swaps the theme
 colors (figure background, axes background, black foreground) and the default
 diverging colormap (`coolwarm` to `berlin`) on the drawn artists, prints a second
-PNG, and swaps everything back. Both PNGs land on the page, and the site shows the
-one matching the reader's color scheme.
+PNG, and restores the exact properties it changed. Both PNGs land on the page, and
+the site shows the one matching the reader's color scheme.
 
 What this means when writing an example:
 
 - Read backgrounds from matplotlib rather than hardcoding them, for example
-  `mpl.rcParams["figure.facecolor"]`. Pure black and pure white are theme colors
-  wherever they appear (text, lines, line markers, and backgrounds). Per-element
-  colors (`scatter(c="black")`, collections) are left alone, and any other explicit
-  color is kept as is.
+  `mpl.rcParams["figure.facecolor"]`. Figures created with `plt.subplots` or
+  `plt.figure` already get this background. Pure black is a theme color wherever
+  it appears (text, lines, line markers, and backgrounds). Per-element colors
+  (`scatter(c="black")`, collections) are left alone. Pure white and any other
+  explicit color are kept as is.
+- A figure whose background is pure black is taken as drawn for a dark page: its
+  black is swapped as background and its white as text for both pages, pure-white
+  data colors included. This cannot work at a finer grain, since one figure can
+  hold both a plot on black with white text and a regular plot.
 - Do not branch on the theme in the example: there is only one run. Pick colormaps
   that read well on both backgrounds, or swap them with a hook (below).
 - Images not drawn by matplotlib (PIL images, screenshots) are shown unchanged in
   both themes.
 
 When the built-in swap is not enough, point the `hook` key at a module of the
-project that defines `gallery_retheme(fig, theme)`. It runs in the kernel after the
-swap, with `"dark"` before the dark rendering and `"light"` after the figure is
-swapped back, and must undo for `"light"` what it did for `"dark"`:
+project that defines `gallery_retheme(fig, theme)`. It runs in the kernel after a
+theme swap and returns a context manager that restores what it changed, also when
+printing fails. It is called with `"dark"` before the dark rendering, and with
+`"light"` when a figure drawn on black is first converted to light. There is no
+call to undo: the returned context manager does that.
 
 ```python
 from zallery.theme import swap_cmaps
@@ -135,8 +142,12 @@ SWAPS = {"inferno_r": "inferno"}
 def gallery_retheme(fig, theme):
     """Draw with `inferno_r` on the light page, `inferno` on the dark page."""
     mapping = SWAPS if theme == "dark" else {dark: light for light, dark in SWAPS.items()}
-    swap_cmaps(fig, mapping)
+    return swap_cmaps(fig.findobj(), mapping)
 ```
+
+`zallery.theme.swap_cmaps` and `zallery.theme.swap_colors` take the figure's
+artists and a mapping, and each returns such a context manager; combine several
+with `contextlib.ExitStack`.
 
 ## Configuration
 

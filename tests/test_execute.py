@@ -150,14 +150,16 @@ def test_execute_imports_the_project_hook_into_the_kernel(tmp_path: Path) -> Non
     """`hook_module` is resolved on `hook_root` inside the kernel and really runs."""
     marker = tmp_path / "hook_calls.txt"
     (tmp_path / "myhooks.py").write_text(
+        "from contextlib import ExitStack\n"
         "from pathlib import Path\n"
         "def gallery_retheme(fig, theme):\n"
         f"    with Path({str(marker)!r}).open('a') as f:\n"
         "        f.write(theme + '\\n')\n"
+        "    return ExitStack()\n"
     )
     src = tmp_path / "ex.py"
     src.write_text("# %%\nimport matplotlib.pyplot as plt\n_ = plt.plot([1, 2, 3])\n")
 
     execute_example(src, timeout=120, hook_module="myhooks", hook_root=tmp_path)
 
-    assert marker.read_text() == "dark\nlight\n"
+    assert marker.read_text() == "dark\n"
