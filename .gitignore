@@ -9,6 +9,14 @@ wheels/
 # Virtual environments
 .venv
 
+# Documentation
+site/
+.cache/
+
+# Examples gallery (generated)
+docs/examples/_built/
+docs/examples/index.md
+
 # Coverage and caches
 htmlcov/
 .coverage

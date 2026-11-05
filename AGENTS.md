@@ -22,9 +22,16 @@ just test          # run tests with coverage
 just pre-commit    # ruff check/format, ty, codespell, numpydoc-validation
 uv run ty check    # type check src and tests
 uv build           # build sdist and wheel
+just gallery       # build the docs example gallery with zallery itself
+just docs          # gallery, then `zensical build --strict`
+just serve-docs    # gallery, then serve the docs locally
 ```
 
 Run a single test: `uv run pytest tests/test_theme.py::test_name`.
+
+The docs site (`zensical.toml`, `docs/`) is small on purpose: the home page includes
+`README.md`, and `docs/examples/` is a gallery built by zallery itself. Each example
+there shows one feature; a new example also needs a `nav` entry in `zensical.toml`.
 
 ## Code map
 

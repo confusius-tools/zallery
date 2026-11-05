@@ -192,6 +192,7 @@ ConfUSIus and makes no assumption about what the examples compute.
 uv sync            # install dependencies
 just test          # run tests
 just pre-commit    # run lint, format, type checks, docstring checks
+just serve-docs    # build the example gallery in docs/examples and serve the docs
 ```
 
 ## License

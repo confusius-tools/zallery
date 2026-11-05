@@ -2,6 +2,7 @@ files: |
     (?x)^(
         src/.*/.*py
         | tests/.*py
+        | docs/.*py
     )$
 
 repos:

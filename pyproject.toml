@@ -53,7 +53,12 @@ dev = [
     "pytest-cov>=6.0.0",
     "ruff>=0.16.5",
     "ty>=0.0.77,<0.1.0",
+    "zensical>=0.0.67",
 ]
+
+[tool.zallery]
+# The gallery of this project's own docs; build with `just gallery`.
+examples = "docs/examples"
 
 [tool.numpydoc_validation]
 exclude = [
