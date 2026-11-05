@@ -8,7 +8,8 @@
 # In the dark color scheme, zallery draws the figure again with plotly's dark
 # template merged into the figure's own. Switch the scheme to see it.
 #
-# The page loads plotly.js from plotly's CDN.
+# zallery copies plotly.js next to the page from the plotly package installed for
+# the build, so the page loads nothing from plotly's servers.
 
 # %%
 import plotly.express as px

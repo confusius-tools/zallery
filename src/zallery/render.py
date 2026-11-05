@@ -34,7 +34,7 @@ _PLOTLY_SCRIPT = """\
 (function () {
   var element = document.getElementById("%(id)s");
   var figure = JSON.parse(document.getElementById("%(id)s-figure").textContent);
-  var source = "%(source)s";
+  var source = "%(source)s";  // As written: the site may prefix the src with a path.
   function draw() {
     var scheme = document.body.getAttribute("data-md-color-scheme");
     var layout = figure.layouts[scheme === "slate" ? "slate" : "default"];
@@ -48,17 +48,13 @@ _PLOTLY_SCRIPT = """\
     observer.observe(document.body, {attributeFilter: ["data-md-color-scheme"]});
   }
   if (window.Plotly) { start(); return; }
-  var script = document.querySelector('script[src="' + source + '"]');
-  if (!script) {
-    script = document.createElement("script");
-    script.src = source;
-    document.head.appendChild(script);
-  }
-  script.addEventListener("load", start);
+  document.querySelector('script[src$="' + source + '"]').addEventListener("load", start);
 })();"""
 """Script drawing one plotly figure, and drawing it again when the scheme changes.
 
-plotly.js is loaded once per page, by the first figure to need it.
+On a page opened directly, the `<script src>` of plotly.js before the first figure
+has run already. On a page reached by instant navigation, the theme inserts that
+element again, and it runs after the figure scripts: they wait for it.
 """
 
 
@@ -279,7 +275,34 @@ def _html_block(html: str) -> str:
     return '<div class="gallery-rich-output">' + html.rstrip() + "</div>\n"
 
 
-def _plotly_block(figure: dict[str, Any], element_id: str) -> str:
+def _write_plotly_js(out_dir: Path) -> str:
+    """Write the plotly.js of the installed plotly next to a page.
+
+    plotly is installed whenever a page shows a plotly figure: the kernel runs on
+    the interpreter zallery runs on. Its plotly.js is the one its figures are made
+    for.
+
+    Parameters
+    ----------
+    out_dir : pathlib.Path
+        Folder of the page.
+
+    Returns
+    -------
+    str
+        The file name, which holds the plotly.js version.
+    """
+    # Imported here, for galleries with no plotly figure.
+    from plotly.offline import get_plotlyjs, get_plotlyjs_version
+
+    name = f"plotly-{get_plotlyjs_version()}.min.js"
+    (out_dir / name).write_text(get_plotlyjs(), encoding="utf-8")
+    return name
+
+
+def _plotly_block(
+    figure: dict[str, Any], element_id: str, source: str, *, load: bool
+) -> str:
     """Return HTML drawing a plotly figure in the color scheme of the page.
 
     The light drawing is the figure as made. The dark one merges plotly's dark
@@ -292,17 +315,19 @@ def _plotly_block(figure: dict[str, Any], element_id: str) -> str:
         The figure, as the plotly mime type carries it.
     element_id : str
         Id of the element the figure is drawn in, unique in the page.
+    source : str
+        URL of plotly.js, relative to the page (see `_write_plotly_js`).
+    load : bool
+        Whether to load plotly.js before the figure: true for the first figure of
+        the page only.
 
     Returns
     -------
     str
-        The HTML: the element, the figure as JSON, and the script drawing it with
-        plotly.js from plotly's CDN, at the version of the plotly that made it.
+        The HTML: the element, the figure as JSON, and the script drawing it.
     """
-    # Imported here, for pages with no plotly figure. plotly is installed whenever
-    # one is shown: the kernel runs on the interpreter zallery runs on.
+    # Imported here, for galleries with no plotly figure.
     from plotly.io import templates
-    from plotly.offline import get_plotlyjs_version
 
     layout = figure.get("layout") or {}
     own = layout.get("template") or {}
@@ -323,13 +348,13 @@ def _plotly_block(figure: dict[str, Any], element_id: str) -> str:
     }
     # `<` escaped, so that no string of the figure can close the script element.
     data = json.dumps(page, separators=(",", ":")).replace("<", "\\u003c")
-    source = f"https://cdn.plot.ly/plotly-{get_plotlyjs_version()}.min.js"
     script = _PLOTLY_SCRIPT % {"id": element_id, "source": source}
     # A responsive figure is as high as its element: without a height, the element
     # collapses on the first redraw. Same height as plotly's notebook renderer.
     height = layout.get("height") or (own.get("layout") or {}).get("height") or 525
     return (
-        f'<div id="{element_id}" class="gallery-plotly" '
+        (f'<script src="{source}"></script>\n' if load else "")
+        + f'<div id="{element_id}" class="gallery-plotly" '
         f'style="height: {height}px"></div>\n'
         f'<script type="application/json" id="{element_id}-figure">{data}</script>\n'
         f"<script>\n{script}\n</script>"
@@ -550,6 +575,7 @@ def render_notebook(
     parts: list[str] = []
     tabs: list[tuple[str, str]] = []
     thumbnail: tuple[Path, Path] | None = None
+    plotly_js: str | None = None
     cells = source_notebook.cells
     # Index of a Markdown cell already written under the code cell it annotates.
     moved = 0
@@ -638,10 +664,14 @@ def render_notebook(
                 data = output.get("data", {})
                 if isinstance(data, dict) and _PLOTLY_MIME in data:
                     _flush_text_outputs(cell_parts, pending_text)
+                    load = plotly_js is None
+                    if plotly_js is None:
+                        plotly_js = _write_plotly_js(out_dir)
                     element_id = f"zallery-plotly-{cell_index}-{output_index}"
-                    cell_parts.append(
-                        _html_block(_plotly_block(data[_PLOTLY_MIME], element_id))
+                    block = _plotly_block(
+                        data[_PLOTLY_MIME], element_id, plotly_js, load=load
                     )
+                    cell_parts.append(_html_block(block))
                     continue
                 if isinstance(data, dict) and "text/html" in data:
                     html = data["text/html"]

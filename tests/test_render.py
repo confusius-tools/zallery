@@ -10,7 +10,7 @@ import nbformat
 import plotly.graph_objects as go
 import plotly.io as pio
 import pytest
-from plotly.offline import get_plotlyjs_version
+from plotly.offline import get_plotlyjs, get_plotlyjs_version
 
 from zallery.render import render_notebook
 
@@ -436,15 +436,24 @@ def _html_cell(*tags: str, image: bool = False) -> nbformat.NotebookNode:
     return cell
 
 
-def _render_plotly(tmp_path: Path, title: str, **layout: object) -> tuple[dict, str]:
+def _render_plotly(
+    tmp_path: Path,
+    title: str,
+    *,
+    shown: int = 1,
+    layout: dict[str, object] | None = None,
+) -> tuple[dict, str]:
     """Render a cell that showed a plotly bar chart; return the figure and the page."""
     figure = go.Figure(
-        go.Bar(x=[1, 2], y=[3, 4]), layout={"title": {"text": title}, **layout}
+        go.Bar(x=[1, 2], y=[3, 4]), layout={"title": {"text": title}, **(layout or {})}
     )
     # The kernel sends what plotly's default renderer there gives: its mime type alone.
     bundle = pio.renderers["plotly_mimetype"].to_mimebundle(figure.to_dict())
     cell = nbformat.v4.new_code_cell("fig")
-    cell.outputs = [nbformat.v4.new_output(output_type="display_data", data=bundle)]
+    cell.outputs = [
+        nbformat.v4.new_output(output_type="display_data", data=bundle)
+        for _ in range(shown)
+    ]
     nb = nbformat.v4.new_notebook()
     nb.cells.append(cell)
     md_path, _ = render_notebook(
@@ -468,7 +477,18 @@ def test_render_draws_a_plotly_figure_in_each_color_scheme(tmp_path: Path) -> No
     assert dark["template"]["layout"]["font"]["color"] == dark_font
     for layout in (light, dark):
         assert layout["template"]["layout"]["paper_bgcolor"] == "rgba(0,0,0,0)"
-    assert f"https://cdn.plot.ly/plotly-{get_plotlyjs_version()}.min.js" in md
+
+
+def test_render_loads_plotly_js_once_from_a_copy_next_to_the_page(
+    tmp_path: Path,
+) -> None:
+    """The copy comes from the plotly that made the figures, so the versions match."""
+    _, md = _render_plotly(tmp_path, "Bars", shown=2)
+
+    name = f"plotly-{get_plotlyjs_version()}.min.js"
+    assert md.count(f'<script src="{name}"></script>') == 1
+    assert md.count('class="gallery-plotly"') == 2
+    assert (tmp_path / name).read_text(encoding="utf-8") == get_plotlyjs()
 
 
 def test_render_keeps_a_plotly_title_from_closing_its_script(tmp_path: Path) -> None:
@@ -483,7 +503,7 @@ def test_render_gives_a_plotly_figure_the_height_plotly_draws_it_at(
     tmp_path: Path, layout: dict[str, object], height: int
 ) -> None:
     """A figure without a height would collapse: it is sized to its element."""
-    _, md = _render_plotly(tmp_path, "Bars", **layout)
+    _, md = _render_plotly(tmp_path, "Bars", layout=layout)
 
     assert f'class="gallery-plotly" style="height: {height}px"' in md
 

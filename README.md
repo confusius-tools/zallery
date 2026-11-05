@@ -197,8 +197,9 @@ renderer setup.
   plotly's `plotly_dark` template merged into the figure's own. Both drop the
   paper background, so the figure sits on the page. Colors set on the figure
   itself, not by its template, are the same in both schemes.
-- The page loads plotly.js from `cdn.plot.ly`, at the version of the plotly package
-  that made the figure.
+- zallery copies plotly.js from the plotly package that made the figure next to
+  the page, so the site loads nothing from plotly's servers. The file weighs about
+  5 MB; there is one per section that has plotly figures.
 - A plotly figure gives no thumbnail: its example keeps the default one.
 
 ## HTML thumbnails
