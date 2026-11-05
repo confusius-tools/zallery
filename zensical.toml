@@ -21,11 +21,9 @@ nav = [
         { "When things go wrong" = [
             { "An example that raises" = "examples/_built/errors/raise_error.md" },
         ]},
-        { "Admonitions" = [
-            { "Writing an admonition" = "examples/_built/admonitions/write_admonition.md" },
-        ]},
-        { "Tabs" = [
-            { "Cells in tabs" = "examples/_built/tabs/tab_cells.md" },
+        { "Zensical syntax" = [
+            { "Writing an admonition" = "examples/_built/zensical/write_admonition.md" },
+            { "Cells in tabs" = "examples/_built/zensical/tab_cells.md" },
         ]},
     ]},
 ]
