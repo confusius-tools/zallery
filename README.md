@@ -196,4 +196,4 @@ just pre-commit    # run lint, format, type checks, docstring checks
 
 ## License
 
-BSD-3-Clause. Portions derived from ConfUSIus; see `NOTICE`.
+BSD-3-Clause. See `LICENSE`.
