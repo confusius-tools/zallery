@@ -91,10 +91,10 @@ src/zallery/
   `None`) lives in `_original_facecolor` and `_original_edgecolor`. The palette swap
   restores from those, or an edge color stops following its face color. It skips
   colormapped collections, whose colors matplotlib recomputes on draw.
-- HTML thumbnails run the browser as a command. `--blink-settings=scriptEnabled=false`
-  makes it write no picture, so scripts are blocked by the page's content security
-  policy instead. Without its own `--user-data-dir`, a browser the user has open
-  takes over the command and no picture is written either.
+- HTML thumbnails run the browser as a command. The page's content security policy
+  lets inline scripts run (a plotly thumbnail is drawn by one, with plotly.js
+  written in the page) and blocks every fetch. Without its own `--user-data-dir`,
+  a browser the user has open takes over the command and no picture is written.
 - In a kernel, plotly's default renderer sends its mime type alone, with no HTML or
   text: zallery draws the figure itself. With `responsive: true`, a figure is as
   high as its element, so the element gets the figure's height (525px by default,

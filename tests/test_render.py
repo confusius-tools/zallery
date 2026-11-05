@@ -491,6 +491,28 @@ def test_render_loads_plotly_js_once_from_a_copy_next_to_the_page(
     assert (tmp_path / name).read_text(encoding="utf-8") == get_plotlyjs()
 
 
+def test_render_takes_the_thumbnail_from_a_plotly_figure(tmp_path: Path) -> None:
+    """The browser gets the figure with plotly.js itself: it loads nothing."""
+    figure = go.Figure(go.Bar(x=[1, 2], y=[3, 4]))
+    bundle = pio.renderers["plotly_mimetype"].to_mimebundle(figure.to_dict())
+    cell = nbformat.v4.new_code_cell("fig")
+    cell.metadata["tags"] = ["thumbnail"]
+    cell.outputs = [nbformat.v4.new_output(output_type="display_data", data=bundle)]
+    thumbnailer = _Thumbnailer()
+
+    thumbnail = _render_thumbnail(tmp_path, cell, thumbnailer)
+
+    assert thumbnail == (
+        tmp_path / "ex_thumb_light.png",
+        tmp_path / "ex_thumb_dark.png",
+    )
+    (html,) = thumbnailer.seen
+    assert f"<script>{get_plotlyjs()}</script>" in html
+    assert 'class="gallery-plotly"' in html
+    assert "<script src=" not in html
+    assert '"displayModeBar":false' in html
+
+
 def test_render_keeps_a_plotly_title_from_closing_its_script(tmp_path: Path) -> None:
     _, md = _render_plotly(tmp_path, "a </script> b")
 

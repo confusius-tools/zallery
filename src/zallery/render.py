@@ -301,7 +301,12 @@ def _write_plotly_js(out_dir: Path) -> str:
 
 
 def _plotly_block(
-    figure: dict[str, Any], element_id: str, source: str, *, load: bool
+    figure: dict[str, Any],
+    element_id: str,
+    source: str,
+    *,
+    load: bool,
+    thumbnail: bool = False,
 ) -> str:
     """Return HTML drawing a plotly figure in the color scheme of the page.
 
@@ -320,6 +325,10 @@ def _plotly_block(
     load : bool
         Whether to load plotly.js before the figure: true for the first figure of
         the page only.
+    thumbnail : bool, default: False
+        Whether to draw the figure for a thumbnail picture instead: at the size of
+        the browser window, which it fills, with plotly.js written in the page,
+        since the browser loads nothing.
 
     Returns
     -------
@@ -328,9 +337,21 @@ def _plotly_block(
     """
     # Imported here, for galleries with no plotly figure.
     from plotly.io import templates
+    from plotly.offline import get_plotlyjs
 
     layout = figure.get("layout") or {}
     own = layout.get("template") or {}
+    if thumbnail:
+        loader = f"<script>{get_plotlyjs()}</script>\n"
+        layout = {k: v for k, v in layout.items() if k not in ("width", "height")}
+        style = "position: fixed; inset: 0"
+    else:
+        loader = f'<script src="{source}"></script>\n' if load else ""
+        # A responsive figure is as high as its element: without a height, the
+        # element collapses on the first redraw. Same height as plotly's notebook
+        # renderer.
+        height = layout.get("height") or (own.get("layout") or {}).get("height") or 525
+        style = f"height: {height}px"
     clear = {"layout": {"paper_bgcolor": "rgba(0,0,0,0)"}}
     page = {
         "data": figure.get("data") or [],
@@ -344,18 +365,18 @@ def _plotly_block(
                 ("slate", (own, "plotly_dark", clear)),
             )
         },
-        "config": {"responsive": True, **(figure.get("config") or {})},
+        "config": {
+            "responsive": True,
+            **(figure.get("config") or {}),
+            # The toolbar is of no use on a picture.
+            **({"displayModeBar": False} if thumbnail else {}),
+        },
     }
     # `<` escaped, so that no string of the figure can close the script element.
     data = json.dumps(page, separators=(",", ":")).replace("<", "\\u003c")
     script = _PLOTLY_SCRIPT % {"id": element_id, "source": source}
-    # A responsive figure is as high as its element: without a height, the element
-    # collapses on the first redraw. Same height as plotly's notebook renderer.
-    height = layout.get("height") or (own.get("layout") or {}).get("height") or 525
     return (
-        (f'<script src="{source}"></script>\n' if load else "")
-        + f'<div id="{element_id}" class="gallery-plotly" '
-        f'style="height: {height}px"></div>\n'
+        f'{loader}<div id="{element_id}" class="gallery-plotly" style="{style}"></div>\n'
         f'<script type="application/json" id="{element_id}-figure">{data}</script>\n'
         f"<script>\n{script}\n</script>"
     )
@@ -668,10 +689,17 @@ def render_notebook(
                     if plotly_js is None:
                         plotly_js = _write_plotly_js(out_dir)
                     element_id = f"zallery-plotly-{cell_index}-{output_index}"
-                    block = _plotly_block(
-                        data[_PLOTLY_MIME], element_id, plotly_js, load=load
-                    )
+                    figure = data[_PLOTLY_MIME]
+                    block = _plotly_block(figure, element_id, plotly_js, load=load)
                     cell_parts.append(_html_block(block))
+                    if (
+                        html_thumbnail is not None
+                        and "thumbnail" in tags
+                        and first_html is None
+                    ):
+                        first_html = _plotly_block(
+                            figure, element_id, plotly_js, load=True, thumbnail=True
+                        )
                     continue
                 if isinstance(data, dict) and "text/html" in data:
                     html = data["text/html"]

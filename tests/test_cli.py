@@ -142,6 +142,23 @@ def test_cli_takes_html_thumbnails_when_switched_on(tmp_path: Path) -> None:
 
 
 @pytest.mark.slow
+@pytest.mark.skipif(find_browser() is None, reason="needs a Chromium-family browser")
+def test_cli_takes_a_plotly_figure_as_thumbnail(tmp_path: Path) -> None:
+    project, examples = _make_html_project(tmp_path)
+    (examples / "io" / "hello.py").write_text(
+        '# %% tags=["thumbnail"]\nimport plotly.graph_objects as go\n\n'
+        "go.Figure(go.Bar(y=[3, 4], marker_color='#ff0000'))\n"
+    )
+
+    proc = _run(project)
+
+    assert proc.returncode == 0, f"stderr: {proc.stderr}\nstdout: {proc.stdout}"
+    for scheme in ("light", "dark"):
+        thumb = examples / "_built" / "io" / f"hello_thumb_{scheme}.png"
+        assert (255, 0, 0) in _colors(thumb)
+
+
+@pytest.mark.slow
 def test_cli_builds_without_a_browser_for_html_thumbnails(tmp_path: Path) -> None:
     """No browser costs the thumbnails and a warning, not the build."""
     project, examples = _make_html_project(tmp_path)

@@ -200,7 +200,9 @@ renderer setup.
 - zallery copies plotly.js from the plotly package that made the figure next to
   the page, so the site loads nothing from plotly's servers. The file weighs about
   5 MB; there is one per section that has plotly figures.
-- A plotly figure gives no thumbnail: its example keeps the default one.
+- With [HTML thumbnails](#html-thumbnails) switched on, the plotly figure of a
+  `thumbnail` cell is its example's thumbnail, drawn to fill the card in each color
+  scheme.
 
 ## HTML thumbnails
 
@@ -213,8 +215,8 @@ html_thumbnails = true
 html_thumbnail_css = ["docs/stylesheets/extra.css"]
 ```
 
-A `thumbnail` cell that shows no image then gives its first HTML output as the
-thumbnail. zallery pictures the top-left corner of the output with a headless
+A `thumbnail` cell that shows no image then gives its first HTML output, or plotly
+figure, as the thumbnail. zallery pictures the top-left corner of the output with a headless
 browser, once for each color scheme.
 
 - The machine that builds the gallery needs a Chromium-family browser. zallery
@@ -229,8 +231,8 @@ browser, once for each color scheme.
   it does on its page. The theme's own stylesheet is not part of the picture;
   zallery sets the `data-md-color-scheme` attribute and the
   `--md-default-fg-color` variables that site styles usually build on.
-- The picture runs no script and loads nothing from the network, so an output
-  drawn by JavaScript comes out empty.
+- The picture runs the output's own scripts but loads nothing from the network: an
+  output whose scripts need a file from the network comes out empty.
 
 ## Configuration
 

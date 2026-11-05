@@ -79,12 +79,14 @@ def _corner(png: Path) -> tuple[float, ...]:
 @pytest.mark.slow
 @pytest.mark.skipif(find_browser() is None, reason="needs a Chromium-family browser")
 def test_screenshot_html_writes_a_light_and_a_dark_picture(tmp_path: Path) -> None:
-    """Each picture has its scheme's background, the given styles, and no scripts."""
+    """Each picture has its scheme's background, the given styles, and the output's
+    own drawing, script included."""
     light, dark = tmp_path / "light.png", tmp_path / "dark.png"
-    # The script would paint the page red; the style rule paints the block blue.
+    # The style rule paints the first block blue; the script, the second one green.
     html = (
-        "<script>document.body.style.background = 'red'</script>"
-        '<div class="box">Hello</div>'
+        '<div class="box">Hello</div><div id="drawn"></div>'
+        "<script>document.getElementById('drawn').style.cssText ="
+        " 'background: #00ff00; height: 60px'</script>"
     )
     css = ".gallery-rich-output .box { background: #0000ff; height: 60px; }"
 
@@ -99,6 +101,8 @@ def test_screenshot_html_writes_a_light_and_a_dark_picture(tmp_path: Path) -> No
     assert width / height == pytest.approx(4 / 3, rel=0.05)
     blue = (pixels[..., :3] == [0.0, 0.0, 1.0]).all(axis=-1)
     assert blue.any()
+    green = (pixels[..., :3] == [0.0, 1.0, 0.0]).all(axis=-1)
+    assert green.any()
 
 
 def test_screenshot_html_reports_a_browser_that_fails(

@@ -1,7 +1,7 @@
 """Thumbnails of HTML outputs, taken by a headless Chromium-family browser.
 
-An HTML output (a DataFrame, an xarray view) has no picture to put on its index
-card. The browser is run as a command on a small page holding the output, once for
+An HTML output (a DataFrame, an xarray view) or a plotly figure has no picture to
+put on its index card. The browser is run as a command on a small page holding the output, once for
 each color scheme, and prints the top-left corner of that page to a PNG.
 """
 
@@ -34,8 +34,12 @@ _WINDOW = (440, 330)
 _SCALE = 2
 """Device pixels per CSS pixel, so the picture stays sharp on dense screens."""
 
-_POLICY = "default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:"
-"""Content security policy of the page: no script runs, nothing is fetched."""
+_POLICY = (
+    "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline';"
+    " img-src data:; font-src data:"
+)
+"""Content security policy of the page: the output's own scripts run (a plotly
+figure is drawn by one), and nothing is fetched."""
 
 
 def _playwright_browser() -> str | None:
@@ -185,9 +189,9 @@ def screenshot_html(
                 "--headless",
                 # The sandbox is not available on many build machines (containers,
                 # recent Ubuntu). What it guards against is ruled out instead: the
-                # page's policy runs no script and fetches nothing, no host resolves,
-                # and the content comes from example code that already ran on this
-                # machine.
+                # page's policy fetches nothing, no host resolves, and the content,
+                # scripts included, comes from example code that already ran on
+                # this machine.
                 "--no-sandbox",
                 "--host-resolver-rules=MAP * ~NOTFOUND",
                 # A profile of its own, or a browser the user has open takes over
