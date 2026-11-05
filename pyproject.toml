@@ -60,6 +60,13 @@ dev = [
 # The gallery of this project's own docs; build with `just gallery`.
 examples = "docs/examples"
 
+# The same hues on both pages: strong on light, softer on dark.
+[tool.zallery.light]
+matplotlib.palette = "Dark2"
+
+[tool.zallery.dark]
+matplotlib.palette = "Set2"
+
 [tool.numpydoc_validation]
 exclude = [
     '\.__init__$',

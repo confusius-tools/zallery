@@ -16,6 +16,7 @@ nav = [
         { "Matplotlib figures" = [
             { "A first plot" = "examples/_built/matplotlib/first_plot.md" },
             { "Choosing the thumbnail" = "examples/_built/matplotlib/choose_thumbnail.md" },
+            { "A palette for each color scheme" = "examples/_built/matplotlib/palettes.md" },
         ]},
         { "When things go wrong" = [
             { "An example that raises" = "examples/_built/errors/raise_error.md" },
