@@ -159,12 +159,14 @@ environment variable (default `main`).
 A cached example is reused while its source, the Python version, the configuration,
 the `fingerprint` files, the hook module, and the zallery sources are all unchanged.
 
-## Site integration
+## Zensical integration
 
-zallery writes Markdown; the site provides the rest:
+zallery writes Markdown pages; the Zensical site provides the rest, in
+`zensical.toml` and a stylesheet:
 
 - Markdown extensions `attr_list`, `md_in_html`, `admonition`, `pymdownx.details`
   and `pymdownx.superfences`.
+- `nav` entries for the index page and the built pages.
 - Two CSS rules so each image shows in its own color scheme:
 
   ```css
@@ -176,9 +178,13 @@ zallery writes Markdown; the site provides the rest:
   `<examples>/_assets/default_thumb.svg` and `<examples>/_assets/default_thumb_dark.svg`.
 - Optionally, styles for the classes zallery emits: `examples-cards` and
   `examples-card-summary` on the index page, `gallery-output` and
-  `gallery-rich-output` around cell outputs. The
+  `gallery-rich-output` around cell outputs. This repository's
+  [`zensical.toml`](https://github.com/confusius-tools/zallery/blob/main/zensical.toml)
+  and
+  [stylesheet](https://github.com/confusius-tools/zallery/blob/main/docs/stylesheets/extra.css)
+  are a minimal working setup; the
   [ConfUSIus stylesheet](https://github.com/confusius-tools/confusius/blob/main/docs/stylesheets/extra.css)
-  is a complete example.
+  also styles pandas, xarray and scikit-learn outputs.
 
 ## Relationship to ConfUSIus
 
