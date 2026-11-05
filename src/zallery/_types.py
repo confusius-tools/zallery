@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -9,6 +10,14 @@ Palettes = tuple[tuple[str, ...], tuple[str, ...]]
 """The light and the dark matplotlib color cycle, in this order, as hex colors.
 
 The dark color at a position replaces the light color at the same position.
+"""
+
+
+HtmlThumbnail = Callable[[str, Path, Path], bool]
+"""Writes the thumbnails of an HTML output.
+
+Called with the HTML and the paths of the light and the dark PNG; returns
+whether it wrote them (see `zallery.thumbnail.screenshot_html`).
 """
 
 

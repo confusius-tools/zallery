@@ -46,6 +46,8 @@ def test_load_config_defaults(tmp_path: Path) -> None:
     assert config.hook_file is None
     assert config.fingerprint_files == (tmp_path.resolve() / "uv.lock",)
     assert config.matplotlib_palettes is None
+    assert config.html_thumbnails is False
+    assert config.html_thumbnail_css == ()
 
 
 def test_load_config_searches_parent_directories(tmp_path: Path) -> None:
@@ -162,3 +164,46 @@ def test_deps_fingerprint_tracks_matplotlib_palettes(tmp_path: Path) -> None:
     _write_pyproject(tmp_path, '[tool.zallery.light]\nmatplotlib.palette = "Dark2"\n')
 
     assert deps_fingerprint(load_config(tmp_path)) != baseline
+
+
+def test_load_config_reads_the_html_thumbnail_settings(tmp_path: Path) -> None:
+    (tmp_path / "site.css").write_text("table { color: red; }\n")
+    _write_pyproject(
+        tmp_path, 'html_thumbnails = true\nhtml_thumbnail_css = ["site.css"]\n'
+    )
+
+    config = load_config(tmp_path)
+
+    assert config.html_thumbnails is True
+    assert config.html_thumbnail_css == (tmp_path.resolve() / "site.css",)
+
+
+@pytest.mark.parametrize(
+    ("table", "message"),
+    [
+        ('html_thumbnails = "yes"\n', "html_thumbnails"),
+        ('html_thumbnail_css = "site.css"\n', "html_thumbnail_css"),
+        ('html_thumbnail_css = ["missing.css"]\n', "missing.css"),
+    ],
+)
+def test_load_config_rejects_bad_html_thumbnail_settings(
+    tmp_path: Path, table: str, message: str
+) -> None:
+    _write_pyproject(tmp_path, table)
+
+    with pytest.raises(ConfigError, match=message):
+        load_config(tmp_path)
+
+
+def test_deps_fingerprint_tracks_the_html_thumbnail_settings(tmp_path: Path) -> None:
+    (tmp_path / "site.css").write_text("table { color: red; }\n")
+    _write_pyproject(tmp_path, "")
+    off = deps_fingerprint(load_config(tmp_path))
+    _write_pyproject(
+        tmp_path, 'html_thumbnails = true\nhtml_thumbnail_css = ["site.css"]\n'
+    )
+    on = deps_fingerprint(load_config(tmp_path))
+    (tmp_path / "site.css").write_text("table { color: blue; }\n")
+    restyled = deps_fingerprint(load_config(tmp_path))
+
+    assert len({off, on, restyled}) == 3

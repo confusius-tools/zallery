@@ -15,6 +15,9 @@ Keys (all optional):
 - `fingerprint`: files whose content invalidates the cache when it changes,
   default `["uv.lock"]`. The `zallery` sources, the hook module and the table
   itself are always part of the fingerprint.
+- `html_thumbnails`: whether a cell tagged `thumbnail` may give an HTML output as
+  the thumbnail, pictured by a headless browser; default `false`.
+- `html_thumbnail_css`: stylesheets of the site applied to that picture.
 - `light` and `dark`: tables of presets for each color scheme. Their only key so
   far is `matplotlib.palette`, the default color cycle: the name of a listed
   matplotlib colormap (`"Set2"`) or a list of colors.
@@ -35,7 +38,7 @@ _TABLE = "zallery"
 
 _KNOWN_KEYS = frozenset(
     {"examples", "built", "cache", "binder_repo", "hook", "fingerprint"}
-    | {"light", "dark"}
+    | {"light", "dark", "html_thumbnails", "html_thumbnail_css"}
 )
 """Keys the table may contain; anything else is a typo and rejected."""
 
@@ -68,6 +71,10 @@ class Config:
     matplotlib_palettes : Palettes, optional
         The light and the dark matplotlib color cycle. If not provided,
         matplotlib's default cycle is used on both pages.
+    html_thumbnails : bool, default: False
+        Whether an HTML output may be pictured as an example's thumbnail.
+    html_thumbnail_css : tuple[pathlib.Path, ...], default: ()
+        Stylesheets of the site applied to those pictures.
     """
 
     root: Path
@@ -78,6 +85,8 @@ class Config:
     hook: str | None
     fingerprint_files: tuple[Path, ...]
     matplotlib_palettes: Palettes | None = None
+    html_thumbnails: bool = False
+    html_thumbnail_css: tuple[Path, ...] = ()
 
     @property
     def hook_file(self) -> Path | None:
@@ -282,6 +291,18 @@ def load_config(start: Path) -> Config:
 
     root = pyproject.parent
     examples = root / table.get("examples", "docs/examples")
+    html_thumbnails = table.get("html_thumbnails", False)
+    if not isinstance(html_thumbnails, bool):
+        raise ConfigError("html_thumbnails in [tool.zallery] must be true or false.")
+    stylesheets = table.get("html_thumbnail_css", [])
+    if not isinstance(stylesheets, list):
+        raise ConfigError("html_thumbnail_css in [tool.zallery] must be a list.")
+    html_thumbnail_css = tuple(root / str(path) for path in stylesheets)
+    missing = [str(path) for path in html_thumbnail_css if not path.is_file()]
+    if missing:
+        raise ConfigError(
+            f"No such html_thumbnail_css file in [tool.zallery]: {', '.join(missing)}."
+        )
     return Config(
         root=root,
         examples=examples,
@@ -293,6 +314,8 @@ def load_config(start: Path) -> Config:
             root / p for p in table.get("fingerprint", ["uv.lock"])
         ),
         matplotlib_palettes=_matplotlib_palettes(table),
+        html_thumbnails=html_thumbnails,
+        html_thumbnail_css=html_thumbnail_css,
     )
 
 
@@ -322,12 +345,13 @@ def deps_fingerprint(config: Config) -> str:
                 "binder_repo": config.binder_repo,
                 "hook": config.hook,
                 "matplotlib_palettes": config.matplotlib_palettes,
+                "html_thumbnails": config.html_thumbnails,
             },
             sort_keys=True,
         )
     ]
     # Read everything as UTF-8 so the text does not depend on the platform's locale.
-    for path in config.fingerprint_files:
+    for path in (*config.fingerprint_files, *config.html_thumbnail_css):
         if path.is_file():
             parts.append(f"\n# {path.relative_to(config.root)}\n")
             parts.append(path.read_text(encoding="utf-8"))

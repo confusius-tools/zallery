@@ -408,6 +408,109 @@ def test_render_ignores_annotate_on_a_tab_cell(tmp_path: Path) -> None:
     assert md.index("</div>\n</div>\n</div>\n") < md.index("1.  A note.")
 
 
+_PNG = (
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YA"
+    "AAAASUVORK5CYII="
+)
+"""A 1x1 transparent PNG."""
+
+
+def _html_cell(*tags: str, image: bool = False) -> nbformat.NotebookNode:
+    """Return an executed cell that displayed a table as HTML, and maybe a figure."""
+    cell = nbformat.v4.new_code_cell("table")
+    cell.metadata["tags"] = list(tags)
+    cell.outputs = [
+        nbformat.v4.new_output(
+            output_type="execute_result",
+            data={"text/html": "<table><tr><td>1</td></tr></table>", "text/plain": "1"},
+        )
+    ]
+    if image:
+        cell.outputs.append(
+            nbformat.v4.new_output(output_type="display_data", data={"image/png": _PNG})
+        )
+    return cell
+
+
+class _Thumbnailer:
+    """Stand-in for the browser: records the HTML it is given and writes two files."""
+
+    def __init__(self, *, works: bool = True) -> None:
+        self.works = works
+        self.seen: list[str] = []
+
+    def __call__(self, html: str, light_path: Path, dark_path: Path) -> bool:
+        self.seen.append(html)
+        if self.works:
+            light_path.write_bytes(b"light")
+            dark_path.write_bytes(b"dark")
+        return self.works
+
+
+def _render_thumbnail(
+    tmp_path: Path, cell: nbformat.NotebookNode, thumbnailer: _Thumbnailer | None
+) -> tuple[Path, Path] | None:
+    nb = nbformat.v4.new_notebook()
+    nb.cells.append(cell)
+    _, thumbnail = render_notebook(
+        nb,
+        nb,
+        out_dir=tmp_path,
+        base_name="ex",
+        runtime_seconds=1.0,
+        html_thumbnail=thumbnailer,
+    )
+    return thumbnail
+
+
+def test_render_takes_the_thumbnail_from_an_html_output(tmp_path: Path) -> None:
+    thumbnailer = _Thumbnailer()
+
+    thumbnail = _render_thumbnail(tmp_path, _html_cell("thumbnail"), thumbnailer)
+
+    assert thumbnailer.seen == ["<table><tr><td>1</td></tr></table>"]
+    assert thumbnail == (
+        tmp_path / "ex_thumb_light.png",
+        tmp_path / "ex_thumb_dark.png",
+    )
+    assert thumbnail[0].read_bytes() == b"light"
+    assert thumbnail[1].read_bytes() == b"dark"
+
+
+def test_render_takes_html_thumbnails_only_from_tagged_cells(tmp_path: Path) -> None:
+    thumbnailer = _Thumbnailer()
+
+    assert _render_thumbnail(tmp_path, _html_cell(), thumbnailer) is None
+    assert thumbnailer.seen == []
+
+
+def test_render_takes_no_html_thumbnail_unless_given_the_means(tmp_path: Path) -> None:
+    assert _render_thumbnail(tmp_path, _html_cell("thumbnail"), None) is None
+
+
+def test_render_prefers_an_image_to_an_html_output_as_thumbnail(tmp_path: Path) -> None:
+    """The HTML comes first in the cell, and the figure still wins."""
+    thumbnailer = _Thumbnailer()
+
+    thumbnail = _render_thumbnail(
+        tmp_path, _html_cell("thumbnail", image=True), thumbnailer
+    )
+
+    assert thumbnailer.seen == []
+    assert thumbnail is not None
+    assert (
+        thumbnail[0].read_bytes()
+        == (tmp_path / "ex_output_light" / "cell_01_1_light.png").read_bytes()
+    )
+
+
+def test_render_has_no_thumbnail_when_the_html_one_fails(tmp_path: Path) -> None:
+    thumbnailer = _Thumbnailer(works=False)
+
+    assert _render_thumbnail(tmp_path, _html_cell("thumbnail"), thumbnailer) is None
+    assert len(thumbnailer.seen) == 1
+
+
 def test_render_handles_notebook_without_images(tmp_path: Path) -> None:
     nb = nbformat.v4.new_notebook()
     nb.cells.append(nbformat.v4.new_code_cell("x = 1"))

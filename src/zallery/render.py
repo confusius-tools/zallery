@@ -10,6 +10,8 @@ from pathlib import Path
 
 import nbformat
 
+from zallery._types import HtmlThumbnail
+
 _ANSI_ESCAPE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 """ANSI control sequences (colors, cursor moves) in terminal-oriented output."""
 
@@ -404,6 +406,7 @@ def render_notebook(
     base_name: str,
     runtime_seconds: float,
     binder_url: str | None = None,
+    html_thumbnail: HtmlThumbnail | None = None,
 ) -> tuple[Path, tuple[Path, Path] | None]:
     """Render an executed notebook to Markdown plus light and dark image folders.
 
@@ -423,13 +426,17 @@ def render_notebook(
         Execution time printed at the bottom of the page.
     binder_url : str, optional
         Binder launch URL for the page's button. If not provided, no button.
+    html_thumbnail : HtmlThumbnail, optional
+        Writes the thumbnails of an HTML output. If not provided, only an image
+        output can be a thumbnail.
 
     Returns
     -------
     markdown_path : pathlib.Path
         The rendered page.
     thumbnail : tuple[pathlib.Path, pathlib.Path] or None
-        Light and dark thumbnail paths, if a `thumbnail`-tagged cell produced an image.
+        Light and dark thumbnail paths, if a `thumbnail`-tagged cell produced an
+        image, or an HTML output that `html_thumbnail` could picture.
     """
     out_dir.mkdir(parents=True, exist_ok=True)
     light_image_dir = out_dir / f"{base_name}_output_light"
@@ -481,6 +488,7 @@ def render_notebook(
             if not _is_blank_widget_output(o)
         ]
         pending_text: list[str] = []
+        first_html: str | None = None
         for output_index, output in enumerate(outputs):
             output_type = output.get("output_type")
             if output_type == "stream":
@@ -530,7 +538,9 @@ def render_notebook(
                     if isinstance(html, list):
                         html = "".join(html)
                     _flush_text_outputs(cell_parts, pending_text)
-                    cell_parts.append(_html_block(_normalize_html_output(str(html))))
+                    html = _normalize_html_output(str(html))
+                    first_html = first_html or html
+                    cell_parts.append(_html_block(html))
                     continue
                 if isinstance(data, dict) and "text/plain" in data:
                     pending_text.append(str(data["text/plain"]))
@@ -539,6 +549,18 @@ def render_notebook(
             if output_type == "error":
                 pending_text.append("\n".join(output.get("traceback", [])))
         _flush_text_outputs(cell_parts, pending_text)
+
+        # After the outputs, so that an image anywhere in the cell comes first.
+        if (
+            html_thumbnail is not None
+            and first_html is not None
+            and thumbnail is None
+            and "thumbnail" in tags
+        ):
+            thumb_light = out_dir / f"{base_name}_thumb_light.png"
+            thumb_dark = out_dir / f"{base_name}_thumb_dark.png"
+            if html_thumbnail(first_html, thumb_light, thumb_dark):
+                thumbnail = (thumb_light, thumb_dark)
 
         if tab_title is None:
             _flush_tabs(parts, tabs)

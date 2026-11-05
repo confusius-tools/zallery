@@ -18,7 +18,7 @@ from rich.progress import (
 )
 
 from zallery import cache, discover, execute, index, render
-from zallery._types import ExampleSpec, Palettes, RenderedExample
+from zallery._types import ExampleSpec, HtmlThumbnail, Palettes, RenderedExample
 
 
 def _python_version() -> str:
@@ -162,6 +162,7 @@ def _build_one(
     hook_module: str | None = None,
     hook_root: Path | None = None,
     palettes: Palettes | None = None,
+    html_thumbnail: HtmlThumbnail | None = None,
 ) -> RenderedExample:
     """Build one example and return its rendered metadata.
 
@@ -198,6 +199,9 @@ def _build_one(
     palettes : Palettes, optional
         The light and the dark matplotlib color cycle, passed to
         `zallery.execute.execute_example`.
+    html_thumbnail : HtmlThumbnail, optional
+        Writes the thumbnails of an HTML output, passed to
+        `zallery.render.render_notebook`.
 
     Returns
     -------
@@ -291,6 +295,7 @@ def _build_one(
         base_name=base_name,
         runtime_seconds=seconds,
         binder_url=binder_url,
+        html_thumbnail=html_thumbnail,
     )
 
     shutil.copyfile(spec.source, scratch / f"{base_name}.py")
@@ -336,6 +341,7 @@ def build_gallery(
     hook_module: str | None = None,
     hook_root: Path | None = None,
     palettes: Palettes | None = None,
+    html_thumbnail: HtmlThumbnail | None = None,
 ) -> None:
     """Run the full pipeline and write the gallery to disk.
 
@@ -379,6 +385,10 @@ def build_gallery(
         The light and the dark matplotlib color cycle (see
         `zallery.theme.setup_kernel`). If not provided, matplotlib's default
         cycle is used on both pages.
+    html_thumbnail : HtmlThumbnail, optional
+        Writes the thumbnails of an HTML output (see
+        `zallery.thumbnail.screenshot_html`). If not provided, only an image
+        output can be an example's thumbnail.
 
     Raises
     ------
@@ -416,6 +426,7 @@ def build_gallery(
                     hook_module=hook_module,
                     hook_root=hook_root,
                     palettes=palettes,
+                    html_thumbnail=html_thumbnail,
                     built_dir=built_dir,
                     cache_root=cache_root,
                     deps_fingerprint=deps_fingerprint,

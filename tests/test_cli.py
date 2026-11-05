@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from pathlib import Path
 
 import matplotlib.image as mimg
 import pytest
+
+from zallery.thumbnail import find_browser
 
 
 def _make_project(tmp_path: Path) -> tuple[Path, Path]:
@@ -28,10 +31,13 @@ def _make_project(tmp_path: Path) -> tuple[Path, Path]:
     return project, examples
 
 
-def _run(cwd: Path, *args: str) -> subprocess.CompletedProcess[str]:
+def _run(
+    cwd: Path, *args: str, env: dict[str, str] | None = None
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [sys.executable, "-m", "zallery", *args],
         cwd=cwd,
+        env={**os.environ, **(env or {})},
         capture_output=True,
         text=True,
         check=False,
@@ -82,6 +88,46 @@ def test_cli_draws_each_page_with_its_matplotlib_palette(tmp_path: Path) -> None
     assert (0, 255, 0) not in light
     assert (0, 255, 0) in dark
     assert (255, 0, 0) not in dark
+
+
+def _make_html_project(tmp_path: Path) -> tuple[Path, Path]:
+    """Return a project asking for HTML thumbnails, with one HTML-only example."""
+    project, examples = _make_project(tmp_path)
+    (examples / "io" / "hello.py").write_text(
+        '# %% [markdown]\n# # Hello\n\n# %% tags=["thumbnail"]\n'
+        "from IPython.display import HTML\n\nHTML('<b>hi</b>')\n"
+    )
+    (project / "pyproject.toml").write_text("[tool.zallery]\nhtml_thumbnails = true\n")
+    return project, examples
+
+
+@pytest.mark.slow
+@pytest.mark.skipif(find_browser() is None, reason="needs a Chromium-family browser")
+def test_cli_takes_html_thumbnails_when_switched_on(tmp_path: Path) -> None:
+    project, examples = _make_html_project(tmp_path)
+
+    proc = _run(project)
+
+    assert proc.returncode == 0, f"stderr: {proc.stderr}\nstdout: {proc.stdout}"
+    light = examples / "_built" / "io" / "hello_thumb_light.png"
+    dark = examples / "_built" / "io" / "hello_thumb_dark.png"
+    assert _colors(light) != _colors(dark)
+    index = (examples / "index.md").read_text(encoding="utf-8")
+    assert "_built/io/hello_thumb_light.png#only-light" in index
+
+
+@pytest.mark.slow
+def test_cli_builds_without_a_browser_for_html_thumbnails(tmp_path: Path) -> None:
+    """No browser costs the thumbnails and a warning, not the build."""
+    project, examples = _make_html_project(tmp_path)
+
+    proc = _run(project, env={"ZALLERY_BROWSER": str(tmp_path / "missing-browser")})
+
+    assert proc.returncode == 0, f"stderr: {proc.stderr}\nstdout: {proc.stdout}"
+    assert "ZALLERY_BROWSER" in proc.stderr
+    assert not (examples / "_built" / "io" / "hello_thumb_light.png").exists()
+    index = (examples / "index.md").read_text(encoding="utf-8")
+    assert "_assets/default_thumb.svg#only-light" in index
 
 
 def test_cli_no_run_renders_every_example_without_executing(tmp_path: Path) -> None:

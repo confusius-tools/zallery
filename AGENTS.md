@@ -48,6 +48,7 @@ src/zallery/
 ├── execute.py   # kernel launch (ports below the ephemeral range), nbclient run
 ├── theme.py     # runs in the kernel: light/dark re-render of matplotlib figures
 ├── render.py    # executed notebook to Markdown page and images
+├── thumbnail.py # HTML output to thumbnail PNGs, with a headless browser
 └── index.py     # card index page
 ```
 
@@ -81,6 +82,10 @@ src/zallery/
   `None`) lives in `_original_facecolor` and `_original_edgecolor`. The palette swap
   restores from those, or an edge color stops following its face color. It skips
   colormapped collections, whose colors matplotlib recomputes on draw.
+- HTML thumbnails run the browser as a command. `--blink-settings=scriptEnabled=false`
+  makes it write no picture, so scripts are blocked by the page's content security
+  policy instead. Without its own `--user-data-dir`, a browser the user has open
+  takes over the command and no picture is written either.
 - Tab cells are written as raw HTML in the markup of `pymdownx.tabbed`, not with the
   `===` syntax: indented under `===`, an HTML output is parsed as Markdown text and
   mangled (styles, scripts, table cells). `md_in_html` is no help: it wraps the tab

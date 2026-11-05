@@ -90,7 +90,9 @@ Examples live under `<examples>/<section>/<name>.py`.
 - A leading numeric prefix (`01_io/`, `02_first.py`) orders sections and examples and
   is stripped from the built names.
 - Files and folders starting with `_` are skipped.
-- Tag a cell with `thumbnail` to use its first image output on the index card.
+- Tag a cell with `thumbnail` to use its first image output on the index card. With
+  [HTML thumbnails](#html-thumbnails) switched on, a cell without an image gives its
+  first HTML output.
 - Tag a cell with `collapse` (or `collapse: <title>`) to hide its code behind a
   collapsed callout, handy for setup the reader can expand on demand. The cell still
   runs, and its output renders normally below the callout. The callout defaults to the
@@ -184,6 +186,36 @@ def gallery_retheme(fig, theme):
 artists and a mapping, and each returns such a context manager; combine several
 with `contextlib.ExitStack`.
 
+## HTML thumbnails
+
+An example without a figure can show an HTML output, such as a DataFrame or an
+xarray view, on its index card. Switch the option on in `pyproject.toml`:
+
+```toml
+[tool.zallery]
+html_thumbnails = true
+html_thumbnail_css = ["docs/stylesheets/extra.css"]
+```
+
+A `thumbnail` cell that shows no image then gives its first HTML output as the
+thumbnail. zallery pictures the top-left corner of the output with a headless
+browser, once for each color scheme.
+
+- The machine that builds the gallery needs a Chromium-family browser. zallery
+  uses the one named by the `ZALLERY_BROWSER` environment variable (a command or
+  a path). Without that variable, it takes the first of `chromium`,
+  `chromium-browser`, `google-chrome`, `google-chrome-stable`, `chrome`,
+  `microsoft-edge` and `msedge` on the `PATH`, then the headless shell that
+  `uvx playwright install chromium-headless-shell` downloads.
+- Without a browser, the build prints a warning and goes on: the examples keep the
+  default thumbnail.
+- `html_thumbnail_css` lists stylesheets of your site, so that the output looks as
+  it does on its page. The theme's own stylesheet is not part of the picture;
+  zallery sets the `data-md-color-scheme` attribute and the
+  `--md-default-fg-color` variables that site styles usually build on.
+- The picture runs no script and loads nothing from the network, so an output
+  drawn by JavaScript comes out empty.
+
 ## Configuration
 
 zallery reads the `[tool.zallery]` table of the nearest `pyproject.toml` above the
@@ -198,6 +230,8 @@ are optional:
 | `binder_repo` | unset | `owner/repo` for the Binder launch buttons. |
 | `hook` | unset | Dotted name of a module, importable from the project root, defining `gallery_retheme(fig, theme)`. |
 | `fingerprint` | `["uv.lock"]` | Files whose change invalidates the cache. |
+| `html_thumbnails` | `false` | Whether an HTML output may be an example's thumbnail: see [HTML thumbnails](#html-thumbnails). |
+| `html_thumbnail_css` | `[]` | Stylesheets of the site applied to HTML thumbnails. |
 | `light`, `dark` | none | Tables of presets for each color scheme. Their key so far is `matplotlib.palette`: see [Light and dark figures](#light-and-dark-figures). |
 
 The git ref stamped into Binder URLs comes from the `ZALLERY_BINDER_REF`
