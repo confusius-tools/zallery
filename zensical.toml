@@ -24,6 +24,8 @@ nav = [
         { "Zensical syntax" = [
             { "Writing an admonition" = "examples/_built/zensical/write_admonition.md" },
             { "Cells in tabs" = "examples/_built/zensical/tab_cells.md" },
+            { "Highlighted lines and a title" = "examples/_built/zensical/highlight_lines.md" },
+            { "Code annotations" = "examples/_built/zensical/annotations.md" },
         ]},
     ]},
 ]

@@ -1,3 +1,3 @@
 # Zensical syntax
 
-Admonitions and content tabs in an example.
+Admonitions, content tabs and code block options in an example.
