@@ -93,6 +93,31 @@ def test_rich_tables_are_marked_without_affecting_citations(
     assert text in markdown
 
 
+def test_error_traceback_is_rendered_without_ansi_colors(tmp_path: Path) -> None:
+    nb = _make_nb()
+    nb.cells[1].outputs = [
+        nbformat.v4.new_output(
+            output_type="error",
+            ename="ValueError",
+            evalue="boom",
+            traceback=[
+                "\x1b[31mValueError\x1b[39m  Traceback (most recent call last)",
+                "\x1b[32m----> \x1b[39m\x1b[32m1\x1b[39m \x1b[38;5;28;01mraise\x1b[39;00m",
+                "\x1b[31mValueError\x1b[39m: boom",
+            ],
+        )
+    ]
+    md_path, _ = render_notebook(
+        nb, nb, out_dir=tmp_path, base_name="err", runtime_seconds=0.0
+    )
+
+    markdown = md_path.read_text(encoding="utf-8")
+    assert (
+        "```\nValueError  Traceback (most recent call last)\n"
+        "----> 1 raise\nValueError: boom\n```"
+    ) in markdown
+
+
 def test_render_writes_image_files_into_output_folder(tmp_path: Path) -> None:
     nb = _make_nb()
     render_notebook(
