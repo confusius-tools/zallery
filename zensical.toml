@@ -23,6 +23,9 @@ nav = [
         { "Admonitions" = [
             { "Writing an admonition" = "examples/_built/admonitions/write_admonition.md" },
         ]},
+        { "Tabs" = [
+            { "Cells in tabs" = "examples/_built/tabs/tab_cells.md" },
+        ]},
     ]},
 ]
 
