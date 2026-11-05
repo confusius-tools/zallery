@@ -2417,6 +2417,7 @@ dependencies = [
     { name = "nbformat" },
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "pyzmq" },
     { name = "rich" },
 ]
 
@@ -2449,6 +2450,7 @@ requires-dist = [
     { name = "nbclient", specifier = ">=0.10.0" },
     { name = "nbformat", specifier = ">=5.10.0" },
     { name = "numpy", specifier = ">=2.3.4" },
+    { name = "pyzmq", specifier = ">=25.0" },
     { name = "rich", specifier = ">=14.2.0" },
 ]
 

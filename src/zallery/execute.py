@@ -12,6 +12,8 @@ from pathlib import Path
 
 import jupytext
 import nbformat
+import zmq
+from ipykernel.kernelspec import get_kernel_dict
 from jupyter_client.manager import KernelManager
 from nbclient import NotebookClient
 
@@ -227,6 +229,16 @@ def execute_example(
         "-f",
         "{connection_file}",
     ]
+    # Keys in the connection file encrypt the kernel's sockets, if the ipykernel
+    # launched above reads them (7.3 and later). Without them, it warns on every
+    # start that it runs unencrypted. Its own spec says whether it reads them, which
+    # the kernel spec jupyter_client would look up may not.
+    supported = get_kernel_dict().get("metadata", {}).get("supported_encryption", [])
+    if "curve" in supported and zmq.has("curve"):
+        public, secret = zmq.curve_keypair()
+        # jupyter_client annotates these traits with the trait class, not the value.
+        kernel_manager.curve_publickey = public  # ty: ignore[invalid-assignment]
+        kernel_manager.curve_secretkey = secret  # ty: ignore[invalid-assignment]
 
     # allow_errors=True lets execution continue past failing cells, so the
     # traceback ends up as a regular `error` output that the renderer (see

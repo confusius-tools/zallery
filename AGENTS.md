@@ -79,6 +79,12 @@ src/zallery/
   ignored.
 - Kernel ports are picked below the OS ephemeral range with `cache_ports = False`;
   jupyter_client's default port selection races with outgoing connections on CI.
+- ipykernel 7.3 and later warns on every start that its TCP sockets are not
+  encrypted, unless its connection file holds CurveZMQ keys. zallery sets keys on
+  the kernel manager when the launched ipykernel's own spec
+  (`ipykernel.kernelspec.get_kernel_dict`) says it reads them: jupyter_client's
+  `transport_encryption` decides from the installed kernel spec instead, which can
+  belong to another ipykernel.
 - IPython swallows exceptions raised by a display formatter, so a failing hook
   shows up on the kernel's stderr, not as a cell error.
 - A collection's getters return resolved color arrays; the color as given (`"face"`,

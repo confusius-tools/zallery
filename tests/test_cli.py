@@ -59,6 +59,17 @@ def test_cli_builds_the_gallery_of_the_enclosing_project(tmp_path: Path) -> None
     assert (project / ".gallery-cache").is_dir()
 
 
+@pytest.mark.slow
+def test_cli_runs_examples_on_encrypted_kernel_sockets(tmp_path: Path) -> None:
+    """ipykernel warns on its standard error when its sockets are not encrypted."""
+    project, _ = _make_project(tmp_path)
+
+    proc = _run(project)
+
+    assert proc.returncode == 0, f"stderr: {proc.stderr}\nstdout: {proc.stdout}"
+    assert "without encryption" not in proc.stderr
+
+
 def _colors(png: Path) -> set[tuple[int, ...]]:
     """Return the RGB colors present in an image, as 0-255 integers."""
     pixels = (mimg.imread(png)[..., :3] * 255).round().astype(int)
