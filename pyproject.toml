@@ -63,6 +63,8 @@ docs = [
 [tool.zallery]
 # The gallery of this project's own docs; build with `just gallery`.
 examples = "docs/examples"
+# Each example page gets a badge that opens it on mybinder.org (see `binder/`).
+binder_repo = "confusius-tools/zallery"
 # An HTML output may be an example's thumbnail, styled as on the site.
 html_thumbnails = true
 html_thumbnail_css = ["docs/stylesheets/extra.css"]

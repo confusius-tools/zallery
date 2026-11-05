@@ -169,6 +169,12 @@
   color: var(--md-default-fg-color--light);
 }
 
+/* The Binder badge sits on the line of the download buttons, which are taller. */
+.gallery-binder {
+  vertical-align: middle;
+  margin-right: 0.4rem;
+}
+
 /* An HTML output (a DataFrame, an xarray view) is wrapped in `.gallery-rich-output`.
    A wide one scrolls inside its own box instead of widening the page. */
 .gallery-rich-output {
