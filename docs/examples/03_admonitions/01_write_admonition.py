@@ -25,8 +25,15 @@
 # ## Around a code cell
 #
 # Tag a code cell with `collapse` to hide its code in a collapsed admonition. The
-# cell still runs, and its output stays visible below. The next cell starts with
-# `# %% tags=["collapse"]`:
+# cell still runs, and its output stays visible below:
+#
+# ```python
+# # %% tags=["collapse"]
+# values = [3, 1, 2]
+# print(sorted(values))
+# ```
+#
+# This renders as:
 
 # %% tags=["collapse"]
 values = [3, 1, 2]
@@ -41,7 +48,15 @@ print(sorted(values))
 # - `collapse[<type>]`: another admonition type.
 # - `collapse[<type>]: <title>`: both.
 #
-# The next cell starts with `# %% tags=["collapse[warning]: Slow setup"]`:
+# For example:
+#
+# ```python
+# # %% tags=["collapse[warning]: Slow setup"]
+# total = sum(range(1_000_000))
+# print(total)
+# ```
+#
+# This renders as:
 
 # %% tags=["collapse[warning]: Slow setup"]
 total = sum(range(1_000_000))

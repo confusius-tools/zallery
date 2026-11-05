@@ -15,22 +15,33 @@ rng = np.random.default_rng(0)
 samples = rng.normal(size=500)
 
 # %% [markdown]
-# The next two cells draw the same samples in two ways. The first one starts with
-# `# %% tags=["tab: Line", "thumbnail"]`, the second one with
-# `# %% tags=["tab: Histogram"]`:
+# These two cells draw the same samples in two ways:
+#
+# ```python
+# # %% tags=["tab: Line", "thumbnail"]
+# fig, ax = plt.subplots()
+# ax.plot(samples)
+# plt.show()
+#
+# # %% tags=["tab: Histogram"]
+# fig, ax = plt.subplots()
+# ax.hist(samples, bins=30)
+# plt.show()
+#
+# print(f"mean: {samples.mean():.2f}")
+# ```
+#
+# Tags combine: `thumbnail` puts the first figure on the index card. The cells
+# render as:
 
 # %% tags=["tab: Line", "thumbnail"]
 fig, ax = plt.subplots()
 ax.plot(samples)
-ax.set_xlabel("sample")
-ax.set_ylabel("value")
 plt.show()
 
 # %% tags=["tab: Histogram"]
 fig, ax = plt.subplots()
 ax.hist(samples, bins=30)
-ax.set_xlabel("value")
-ax.set_ylabel("count")
 plt.show()
 
 print(f"mean: {samples.mean():.2f}")
