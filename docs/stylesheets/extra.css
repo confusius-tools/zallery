@@ -168,13 +168,3 @@
   text-transform: uppercase;
   color: var(--md-default-fg-color--light);
 }
-
-/* One cell can emit several outputs (a print, then the value of its last
-   expression): label the first one only. */
-.gallery-output + .gallery-output {
-  margin-top: 0.5em;
-}
-
-.gallery-output + .gallery-output::before {
-  content: none;
-}

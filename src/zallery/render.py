@@ -157,6 +157,27 @@ def _output_code_block(text: str) -> str:
     )
 
 
+def _flush_text_outputs(parts: list[str], pending: list[str]) -> None:
+    """Append the pending plain-text outputs to `parts` as one block, then clear them.
+
+    Consecutive plain-text outputs of a cell (printed text, the value of its last
+    expression, a traceback) read as one output, as in a notebook, so they share a
+    block. An image or HTML output in between starts a new one.
+
+    Parameters
+    ----------
+    parts : list[str]
+        Markdown fragments of the page so far; extended in place.
+    pending : list[str]
+        Plain-text outputs not written yet, in order; emptied in place.
+    """
+    if pending:
+        parts.append(
+            _output_code_block("\n".join(text.rstrip("\n") for text in pending))
+        )
+        pending.clear()
+
+
 def _normalize_html_output(html: str) -> str:
     """Normalize rich HTML reprs for static docs rendering.
 
@@ -338,17 +359,19 @@ def render_notebook(
             for o in executed_cell.get("outputs", [])
             if not _is_blank_widget_output(o)
         ]
+        pending_text: list[str] = []
         for output_index, output in enumerate(outputs):
             output_type = output.get("output_type")
             if output_type == "stream":
                 stream_text = _clean_stream_text(str(output.get("text", "")))
                 if stream_text:
-                    parts.append(_output_code_block(stream_text))
+                    pending_text.append(stream_text)
                 continue
 
             if output_type in {"execute_result", "display_data"}:
                 light_png = _png_data(output)
                 if light_png is not None:
+                    _flush_text_outputs(parts, pending_text)
                     # Images that did not come through the matplotlib hook have no
                     # dark rendering: show the same picture in both themes.
                     dark_png = _dark_png_data(output) or light_png
@@ -385,15 +408,16 @@ def render_notebook(
                     html = data["text/html"]
                     if isinstance(html, list):
                         html = "".join(html)
+                    _flush_text_outputs(parts, pending_text)
                     parts.append(_html_block(_normalize_html_output(str(html))))
                     continue
                 if isinstance(data, dict) and "text/plain" in data:
-                    parts.append(_output_code_block(str(data["text/plain"])))
+                    pending_text.append(str(data["text/plain"]))
                 continue
 
             if output_type == "error":
-                traceback = "\n".join(output.get("traceback", []))
-                parts.append(_output_code_block(traceback))
+                pending_text.append("\n".join(output.get("traceback", [])))
+        _flush_text_outputs(parts, pending_text)
 
     parts.append("\n---\n")
     parts.append(f"**Total running time:** {runtime_seconds:.1f} s\n\n")

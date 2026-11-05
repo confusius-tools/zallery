@@ -118,6 +118,33 @@ def test_error_traceback_is_rendered_without_ansi_colors(tmp_path: Path) -> None
     ) in markdown
 
 
+def test_consecutive_text_outputs_of_a_cell_share_one_block(tmp_path: Path) -> None:
+    nb = _make_nb()
+    image = nb.cells[2].outputs[0]
+    nb.cells[1].outputs = [
+        nbformat.v4.new_output(output_type="stream", name="stdout", text="printed\n"),
+        nbformat.v4.new_output(
+            output_type="execute_result",
+            data={"text/plain": "42"},
+            metadata={},
+            execution_count=1,
+        ),
+        image,
+        nbformat.v4.new_output(output_type="stream", name="stdout", text="after\n"),
+    ]
+    md_path, _ = render_notebook(
+        nb, nb, out_dir=tmp_path, base_name="multi", runtime_seconds=0.0
+    )
+
+    markdown = md_path.read_text(encoding="utf-8")
+    # The print and the cell's value form one block; the image splits off what
+    # comes after it.
+    together = markdown.index("```\nprinted\n42\n```")
+    picture = markdown.index("cell_02_2_light.png#only-light")
+    after = markdown.index("```\nafter\n```")
+    assert together < picture < after
+
+
 def test_render_writes_image_files_into_output_folder(tmp_path: Path) -> None:
     nb = _make_nb()
     render_notebook(
