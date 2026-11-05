@@ -1,6 +1,6 @@
 [project]
 name = "zallery"
-version = "0.0.2"
+version = "0.0.3"
 description = "Build a light-and-dark example gallery for Zensical docs from jupytext scripts."
 readme = "README.md"
 license = "BSD-3-Clause"
