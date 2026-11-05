@@ -32,6 +32,9 @@ Run a single test: `uv run pytest tests/test_theme.py::test_name`.
 The docs site (`zensical.toml`, `docs/`) is small on purpose: the home page includes
 `README.md`, and `docs/examples/` is a gallery built by zallery itself. Each example
 there shows one feature; a new example also needs a `nav` entry in `zensical.toml`.
+Libraries only the examples import (pandas, xarray) are in the `docs` dependency
+group, which `just gallery` installs. CI installs the default groups only, so `src`
+and `tests` must not import them.
 
 ## Code map
 

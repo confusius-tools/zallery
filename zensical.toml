@@ -29,6 +29,8 @@ nav = [
         ]},
         { "Rich outputs" = [
             { "HTML outputs" = "examples/_built/outputs/html_outputs.md" },
+            { "A pandas DataFrame" = "examples/_built/outputs/pandas.md" },
+            { "xarray objects" = "examples/_built/outputs/xarray.md" },
         ]},
     ]},
 ]

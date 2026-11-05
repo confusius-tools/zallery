@@ -229,9 +229,10 @@ zallery writes Markdown pages; the Zensical site provides the rest, in
   [`zensical.toml`](https://github.com/confusius-tools/zallery/blob/main/zensical.toml)
   and
   [stylesheet](https://github.com/confusius-tools/zallery/blob/main/docs/stylesheets/extra.css)
-  are a minimal working setup; the
+  are a working setup, with notebook-like pandas tables; the
   [ConfUSIus stylesheet](https://github.com/confusius-tools/confusius/blob/main/docs/stylesheets/extra.css)
-  also styles pandas, xarray and scikit-learn outputs.
+  also styles scikit-learn outputs. xarray views need no site styles: zallery
+  adapts them to the color scheme itself.
 
 ## Relationship to ConfUSIus
 

@@ -6,8 +6,9 @@ set windows-shell := ["pwsh.exe", "-c"]
     just --list
 
 # Build the examples gallery (pass --no-run, --no-cache or example paths).
+# The `docs` group holds the libraries the examples import.
 gallery *args:
-    uv run zallery {{args}}
+    uv run --group docs zallery {{args}}
 
 # Build documentation.
 docs: gallery
