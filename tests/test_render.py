@@ -319,6 +319,95 @@ def test_render_ignores_collapse_on_a_tab_cell(tmp_path: Path) -> None:
     assert "\n```python\nprint('a')\n```\n" in md
 
 
+@pytest.mark.parametrize(
+    ("tags", "opening"),
+    [
+        (["title: Sort the values"], '``` { .python title="Sort the values" }'),
+        (["highlight: 2 4-5"], '``` { .python hl_lines="2 4-5" }'),
+        (["title: Sort", "highlight: 1"], '``` { .python title="Sort" hl_lines="1" }'),
+        # A title cannot escape a quote: it is delimited by the kind it does not use.
+        (['title: Say "hi"'], "``` { .python title='Say \"hi\"' }"),
+        (['title: Say "hi", it\'s'], "``` { .python title=\"Say 'hi', it's\" }"),
+        # Not line numbers: the tag is ignored instead of breaking the fence.
+        (["highlight: first"], "```python"),
+    ],
+)
+def test_render_writes_title_and_highlight_tags_as_fence_options(
+    tmp_path: Path, tags: list[str], opening: str
+) -> None:
+    nb = nbformat.v4.new_notebook()
+    nb.cells.append(_print_cell("a", *tags))
+
+    md_path, _ = render_notebook(
+        nb, nb, out_dir=tmp_path, base_name="ex", runtime_seconds=1.0
+    )
+    assert f"{opening}\nprint('a')\n```\n" in md_path.read_text()
+
+
+def test_render_places_annotations_between_code_and_output(tmp_path: Path) -> None:
+    """The theme reads annotations from the list directly under the code block."""
+    nb = nbformat.v4.new_notebook()
+    nb.cells.append(_print_cell("a", "annotate"))
+    nb.cells.append(nbformat.v4.new_markdown_cell("1.  A note."))
+    nb.cells.append(nbformat.v4.new_markdown_cell("After."))
+
+    md_path, _ = render_notebook(
+        nb, nb, out_dir=tmp_path, base_name="ex", runtime_seconds=1.0
+    )
+    md = md_path.read_text()
+    assert (
+        "``` { .python .annotate }\nprint('a')\n```\n\n1.  A note.\n\n"
+        '<div class="gallery-output" markdown>'
+    ) in md
+    # The list is moved, not copied, and later cells keep their place.
+    assert md.count("1.  A note.") == 1
+    assert md.index("gallery-output") < md.index("After.")
+
+
+def test_render_keeps_annotations_with_the_code_of_a_collapsed_cell(
+    tmp_path: Path,
+) -> None:
+    nb = nbformat.v4.new_notebook()
+    nb.cells.append(_print_cell("a", "annotate", "collapse"))
+    nb.cells.append(nbformat.v4.new_markdown_cell("1.  A note."))
+
+    md_path, _ = render_notebook(
+        nb, nb, out_dir=tmp_path, base_name="ex", runtime_seconds=1.0
+    )
+    assert (
+        '??? example "Show code"\n\n'
+        "    ``` { .python .annotate }\n    print('a')\n    ```\n\n"
+        "    1.  A note.\n"
+    ) in md_path.read_text()
+
+
+def test_render_annotate_needs_no_following_markdown_cell(tmp_path: Path) -> None:
+    nb = nbformat.v4.new_notebook()
+    nb.cells.append(_print_cell("a", "annotate"))
+    nb.cells.append(_print_cell("b", "annotate"))
+
+    md_path, _ = render_notebook(
+        nb, nb, out_dir=tmp_path, base_name="ex", runtime_seconds=1.0
+    )
+    md = md_path.read_text()
+    assert "``` { .python .annotate }\nprint('a')\n```\n" in md
+    assert "``` { .python .annotate }\nprint('b')\n```\n" in md
+
+
+def test_render_ignores_annotate_on_a_tab_cell(tmp_path: Path) -> None:
+    """A tab is raw HTML, where the list of annotations would show as text."""
+    nb = nbformat.v4.new_notebook()
+    nb.cells.append(_print_cell("a", "tab: One", "annotate"))
+    nb.cells.append(nbformat.v4.new_markdown_cell("1.  A note."))
+
+    md_path, _ = render_notebook(
+        nb, nb, out_dir=tmp_path, base_name="ex", runtime_seconds=1.0
+    )
+    md = md_path.read_text()
+    assert "\n```python\nprint('a')\n```\n" in md
+    assert md.index("</div>\n</div>\n</div>\n") < md.index("1.  A note.")
+
+
 def test_render_handles_notebook_without_images(tmp_path: Path) -> None:
     nb = nbformat.v4.new_notebook()
     nb.cells.append(nbformat.v4.new_code_cell("x = 1"))

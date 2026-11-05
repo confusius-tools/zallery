@@ -89,25 +89,70 @@ def _collapsible_code(kind: str, title: str, code_block: str) -> str:
     return f'??? {kind} "{title}"\n\n{indented}\n'
 
 
-def _tab_title(tags: set[str]) -> str | None:
-    """Return the tab title of a code cell tagged `tab: <title>`, or `None`.
+def _tag_value(tags: set[str], key: str) -> str | None:
+    """Return the value of a cell's `<key>: <value>` tag, or `None`.
 
     Parameters
     ----------
     tags : set[str]
         The cell's tags.
+    key : str
+        The name before the colon, such as `tab` or `title`.
 
     Returns
     -------
     str or None
-        The title, or `None` if no tag gives one.
+        The value, or `None` if no tag gives a non-empty one.
     """
+    prefix = f"{key}:"
     # Sorted for the same reason as in `_collapse_spec`.
     for tag in sorted(tags):
-        title = tag.removeprefix("tab:").strip()
-        if tag.startswith("tab:") and title:
-            return title
+        value = tag.removeprefix(prefix).strip()
+        if tag.startswith(prefix) and value:
+            return value
     return None
+
+
+_HIGHLIGHT_LINES = re.compile(r"\d+(-\d+)?(\s+\d+(-\d+)?)*")
+"""Line numbers and ranges separated by spaces, such as `2 4-5`."""
+
+
+def _code_fence(source: str, tags: set[str], *, annotate: bool) -> str:
+    """Return the fenced code block of a code cell.
+
+    The tags `title: <text>` and `highlight: <lines>` become the `title` and
+    `hl_lines` options of the fence. A `highlight` value that is not a list of line
+    numbers and ranges is ignored.
+
+    Parameters
+    ----------
+    source : str
+        The cell's code.
+    tags : set[str]
+        The cell's tags.
+    annotate : bool
+        Whether to mark the block as annotated, so that the theme reads the numbered
+        list that follows it as the notes of its `# (1)!` comments.
+
+    Returns
+    -------
+    str
+        The Markdown for the fenced block.
+    """
+    options = [".annotate"] if annotate else []
+    title = _tag_value(tags, "title")
+    if title is not None:
+        # The option has no escape for a quote: delimit the title with the kind it
+        # does not use, and give up its double quotes if it uses both.
+        if '"' in title and "'" in title:
+            title = title.replace('"', "'")
+        quote = "'" if '"' in title else '"'
+        options.append(f"title={quote}{title}{quote}")
+    lines = _tag_value(tags, "highlight")
+    if lines is not None and _HIGHLIGHT_LINES.fullmatch(lines):
+        options.append(f'hl_lines="{lines}"')
+    opening = "``` { .python " + " ".join(options) + " }" if options else "```python"
+    return f"{opening}\n{source.rstrip()}\n```\n"
 
 
 def _flush_tabs(parts: list[str], tabs: list[tuple[str, str]]) -> None:
@@ -395,10 +440,15 @@ def render_notebook(
     parts: list[str] = []
     tabs: list[tuple[str, str]] = []
     thumbnail: tuple[Path, Path] | None = None
+    cells = source_notebook.cells
+    # Index of a Markdown cell already written under the code cell it annotates.
+    moved = 0
 
     for cell_index, (cell, executed_cell) in enumerate(
-        zip(source_notebook.cells, executed_notebook.cells, strict=True), start=1
+        zip(cells, executed_notebook.cells, strict=True), start=1
     ):
+        if cell_index == moved:
+            continue
         if cell.cell_type == "markdown":
             _flush_tabs(parts, tabs)
             parts.append(cell.source.rstrip() + "\n")
@@ -407,11 +457,19 @@ def render_notebook(
             continue
 
         tags = _cell_tags(cell)
-        tab_title = _tab_title(tags)
+        tab_title = _tag_value(tags, "tab")
         cell_parts: list[str] = []
-        code_block = "```python\n" + cell.source.rstrip() + "\n```\n"
+        # A tab is a raw HTML block, where Markdown syntax (the `???` of `collapse`,
+        # the list of annotations) would show as text: both tags are ignored there.
+        annotate = "annotate" in tags and tab_title is None
+        code_block = _code_fence(cell.source, tags, annotate=annotate)
+        # `cell_index` counts from 1, so it is the position of the next cell.
+        following = cells[cell_index] if cell_index < len(cells) else None
+        if annotate and following is not None and following.cell_type == "markdown":
+            # The theme takes the notes from the list directly under the code block.
+            code_block += "\n" + following.source.rstrip() + "\n"
+            moved = cell_index + 1
         collapse = _collapse_spec(tags)
-        # A tab is a raw HTML block, where the `???` syntax would show as text.
         if collapse is not None and tab_title is None:
             cell_parts.append(_collapsible_code(*collapse, code_block))
         else:
