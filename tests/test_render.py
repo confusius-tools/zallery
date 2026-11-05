@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import nbformat
@@ -232,6 +233,90 @@ def test_render_collapse_tag_with_admonition_type(tmp_path: Path) -> None:
     md = md_path.read_text()
     assert '??? warning "Advanced setup"' in md
     assert '??? tip "Show code"' in md
+
+
+def _print_cell(text: str, *tags: str) -> nbformat.NotebookNode:
+    """Return an executed cell that printed `text`, carrying `tags`."""
+    cell = nbformat.v4.new_code_cell(f"print('{text}')")
+    cell.metadata["tags"] = list(tags)
+    cell.outputs = [
+        nbformat.v4.new_output(output_type="stream", name="stdout", text=f"{text}\n")
+    ]
+    return cell
+
+
+def test_render_puts_consecutive_tab_cells_in_one_tab_set(tmp_path: Path) -> None:
+    """Cells tagged `tab: <title>` become the tabs of one set, code and output."""
+    nb = nbformat.v4.new_notebook()
+    nb.cells.append(nbformat.v4.new_markdown_cell("# Hello"))
+    nb.cells.append(_print_cell("a", "tab: NumPy"))
+    nb.cells.append(_print_cell("b", "tab: Plain Python"))
+    nb.cells.append(_print_cell("c"))
+
+    md_path, _ = render_notebook(
+        nb, nb, out_dir=tmp_path, base_name="ex", runtime_seconds=1.0
+    )
+    md = md_path.read_text()
+    head, first, rest = md.split('<div class="tabbed-block">')
+    second, after = rest.split("</div>\n</div>\n</div>\n")
+    # The theme shows the block at the position of the checked input: the inputs
+    # come first, then one label and one block per tab, in cell order.
+    (name,) = set(re.findall(r'name="(\w+)"', head))
+    assert '<div class="tabbed-set tabbed-alternate" data-tabs="' in head
+    assert head.endswith(
+        f'<input checked="checked" id="{name}_1" name="{name}" type="radio" />'
+        f'<input id="{name}_2" name="{name}" type="radio" />'
+        f'<div class="tabbed-labels"><label for="{name}_1">NumPy</label>'
+        f'<label for="{name}_2">Plain Python</label></div>\n'
+        '<div class="tabbed-content">\n'
+    )
+    assert "```python\nprint('a')\n```" in first
+    assert "```\na\n```" in first
+    assert "print('b')" not in first
+    assert "```python\nprint('b')\n```" in second
+    assert "```\nb\n```" in second
+    # The untagged cell is outside the set.
+    assert "```python\nprint('c')\n```" in after
+
+
+def test_render_starts_a_new_tab_set_after_an_untagged_cell(tmp_path: Path) -> None:
+    """Each tab set has its own input name, so the sets switch independently."""
+    nb = nbformat.v4.new_notebook()
+    nb.cells.append(_print_cell("a", "tab: One"))
+    nb.cells.append(nbformat.v4.new_markdown_cell("Some prose."))
+    nb.cells.append(_print_cell("b", "tab: Two"))
+
+    md_path, _ = render_notebook(
+        nb, nb, out_dir=tmp_path, base_name="ex", runtime_seconds=1.0
+    )
+    md = md_path.read_text()
+    names = re.findall(r'<input checked="checked" id="\w+" name="(\w+)"', md)
+    assert len(names) == 2
+    assert names[0] != names[1]
+    assert md.index("print('a')") < md.index("Some prose.") < md.index("print('b')")
+
+
+def test_render_escapes_tab_titles(tmp_path: Path) -> None:
+    nb = nbformat.v4.new_notebook()
+    nb.cells.append(_print_cell("a", "tab: R&D <beta>"))
+
+    md_path, _ = render_notebook(
+        nb, nb, out_dir=tmp_path, base_name="ex", runtime_seconds=1.0
+    )
+    assert ">R&amp;D &lt;beta&gt;</label>" in md_path.read_text()
+
+
+def test_render_ignores_collapse_on_a_tab_cell(tmp_path: Path) -> None:
+    """A tab is raw HTML, where the `???` syntax of `collapse` would show as text."""
+    nb = nbformat.v4.new_notebook()
+    nb.cells.append(_print_cell("a", "tab: One", "collapse"))
+
+    md_path, _ = render_notebook(
+        nb, nb, out_dir=tmp_path, base_name="ex", runtime_seconds=1.0
+    )
+    md = md_path.read_text()
+    assert "???" not in md
+    assert "\n```python\nprint('a')\n```\n" in md
 
 
 def test_render_handles_notebook_without_images(tmp_path: Path) -> None:

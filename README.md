@@ -98,6 +98,10 @@ Examples live under `<examples>/<section>/<name>.py`.
   `collapse[<type>]: <title>`, where `<type>` is any
   [admonition](https://zensical.org/docs/authoring/admonitions/) name Zensical
   understands (`warning`, `tip`, `note`, ...).
+- Tag consecutive code cells with `tab: <title>` to show them as tabs, each with its
+  code and its output. An untagged cell, code or Markdown, ends the set of tabs.
+  Every tab runs, in order and in the same kernel. A `collapse` tag on a tab cell is
+  ignored.
 - A failing cell does not abort the build: its traceback is rendered on the page.
 
 ## Light and dark figures

@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import re
 import shutil
+from html import escape
 from pathlib import Path
 
 import nbformat
@@ -86,6 +87,62 @@ def _collapsible_code(kind: str, title: str, code_block: str) -> str:
         ("    " + line) if line.strip() else "" for line in code_block.splitlines()
     )
     return f'??? {kind} "{title}"\n\n{indented}\n'
+
+
+def _tab_title(tags: set[str]) -> str | None:
+    """Return the tab title of a code cell tagged `tab: <title>`, or `None`.
+
+    Parameters
+    ----------
+    tags : set[str]
+        The cell's tags.
+
+    Returns
+    -------
+    str or None
+        The title, or `None` if no tag gives one.
+    """
+    # Sorted for the same reason as in `_collapse_spec`.
+    for tag in sorted(tags):
+        title = tag.removeprefix("tab:").strip()
+        if tag.startswith("tab:") and title:
+            return title
+    return None
+
+
+def _flush_tabs(parts: list[str], tabs: list[tuple[str, str]]) -> None:
+    """Append the pending tabs to `parts` as one set of content tabs, then clear them.
+
+    The set is written as raw HTML, in the markup `pymdownx.tabbed` produces with
+    `alternate_style` and the theme styles. The Markdown syntax (`=== "<title>"`) is
+    not an option: it needs the tab content indented, where Python-Markdown reads an
+    HTML output (a DataFrame, an xarray repr) as text and mangles it. In a raw HTML
+    block, fenced code is still highlighted and everything else is left alone.
+
+    Parameters
+    ----------
+    parts : list[str]
+        Markdown fragments of the page so far; extended in place.
+    tabs : list[tuple[str, str]]
+        Title and Markdown content of each pending tab, in order; emptied in place.
+    """
+    if not tabs:
+        return
+    # The position of the set among the page fragments is unique on the page. The
+    # prefix keeps the ids apart from those of tabs written in a Markdown cell.
+    name = f"__zallery_tab_{len(parts)}"
+    inputs = labels = blocks = ""
+    for index, (title, content) in enumerate(tabs, start=1):
+        checked = 'checked="checked" ' if index == 1 else ""
+        inputs += f'<input {checked}id="{name}_{index}" name="{name}" type="radio" />'
+        labels += f'<label for="{name}_{index}">{escape(title)}</label>'
+        blocks += f'<div class="tabbed-block">\n\n{content}\n</div>\n'
+    parts.append(
+        f'<div class="tabbed-set tabbed-alternate" data-tabs="{len(parts)}:{len(tabs)}">'
+        f'{inputs}<div class="tabbed-labels">{labels}</div>\n'
+        f'<div class="tabbed-content">\n{blocks}</div>\n</div>\n'
+    )
+    tabs.clear()
 
 
 def _png_data(output: dict[str, object]) -> str | None:
@@ -336,23 +393,29 @@ def render_notebook(
     dark_image_dir.mkdir(exist_ok=True)
 
     parts: list[str] = []
+    tabs: list[tuple[str, str]] = []
     thumbnail: tuple[Path, Path] | None = None
 
     for cell_index, (cell, executed_cell) in enumerate(
         zip(source_notebook.cells, executed_notebook.cells, strict=True), start=1
     ):
         if cell.cell_type == "markdown":
+            _flush_tabs(parts, tabs)
             parts.append(cell.source.rstrip() + "\n")
             continue
         if cell.cell_type != "code":
             continue
 
+        tags = _cell_tags(cell)
+        tab_title = _tab_title(tags)
+        cell_parts: list[str] = []
         code_block = "```python\n" + cell.source.rstrip() + "\n```\n"
-        collapse = _collapse_spec(_cell_tags(cell))
-        if collapse is not None:
-            parts.append(_collapsible_code(*collapse, code_block))
+        collapse = _collapse_spec(tags)
+        # A tab is a raw HTML block, where the `???` syntax would show as text.
+        if collapse is not None and tab_title is None:
+            cell_parts.append(_collapsible_code(*collapse, code_block))
         else:
-            parts.append(code_block)
+            cell_parts.append(code_block)
 
         outputs = [
             o
@@ -371,7 +434,7 @@ def render_notebook(
             if output_type in {"execute_result", "display_data"}:
                 light_png = _png_data(output)
                 if light_png is not None:
-                    _flush_text_outputs(parts, pending_text)
+                    _flush_text_outputs(cell_parts, pending_text)
                     # Images that did not come through the matplotlib hook have no
                     # dark rendering: show the same picture in both themes.
                     dark_png = _dark_png_data(output) or light_png
@@ -383,7 +446,7 @@ def render_notebook(
                     _write_png(dark_path, dark_png)
 
                     alt = f"Example output from cell {cell_index}, image {output_index}"
-                    parts.append(
+                    cell_parts.append(
                         _image_tag(
                             src=f"{base_name}_output_light/{light_name}#only-light",
                             alt=alt,
@@ -395,7 +458,7 @@ def render_notebook(
                         + "\n"
                     )
 
-                    if "thumbnail" in _cell_tags(cell) and thumbnail is None:
+                    if "thumbnail" in tags and thumbnail is None:
                         thumb_light = out_dir / f"{base_name}_thumb_light.png"
                         thumb_dark = out_dir / f"{base_name}_thumb_dark.png"
                         shutil.copyfile(light_path, thumb_light)
@@ -408,8 +471,8 @@ def render_notebook(
                     html = data["text/html"]
                     if isinstance(html, list):
                         html = "".join(html)
-                    _flush_text_outputs(parts, pending_text)
-                    parts.append(_html_block(_normalize_html_output(str(html))))
+                    _flush_text_outputs(cell_parts, pending_text)
+                    cell_parts.append(_html_block(_normalize_html_output(str(html))))
                     continue
                 if isinstance(data, dict) and "text/plain" in data:
                     pending_text.append(str(data["text/plain"]))
@@ -417,7 +480,14 @@ def render_notebook(
 
             if output_type == "error":
                 pending_text.append("\n".join(output.get("traceback", [])))
-        _flush_text_outputs(parts, pending_text)
+        _flush_text_outputs(cell_parts, pending_text)
+
+        if tab_title is None:
+            _flush_tabs(parts, tabs)
+            parts.extend(cell_parts)
+        else:
+            tabs.append((tab_title, "\n".join(cell_parts)))
+    _flush_tabs(parts, tabs)
 
     parts.append("\n---\n")
     parts.append(f"**Total running time:** {runtime_seconds:.1f} s\n\n")
