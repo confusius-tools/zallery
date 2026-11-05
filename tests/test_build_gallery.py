@@ -230,4 +230,19 @@ def test_build_gallery_embeds_binder_launch_url(gallery_paths: GalleryPaths) -> 
         "https://mybinder.org/v2/gh/confusius-tools/confusius/v9.9.9"
         "?urlpath=lab/tree/docs/examples/io/hello.py"
     )
-    assert f"[Launch in Binder]({expected})" in md
+    assert f"{{ .skip-lightbox .gallery-binder }}]({expected})" in md
+
+    # A page restored from cache is stamped with the ref of the new build.
+    build_gallery(
+        examples_root=examples_root,
+        built_dir=built_dir,
+        cache_root=cache_root,
+        deps_fingerprint="testdeps==1.0",
+        repo_root=repo_root,
+        binder_repo="confusius-tools/confusius",
+        binder_ref="main",
+    )
+
+    md = (built_dir / "io" / "hello.md").read_text()
+    assert f"]({expected.replace('v9.9.9', 'main')})" in md
+    assert "v9.9.9" not in md

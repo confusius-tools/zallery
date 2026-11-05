@@ -77,8 +77,8 @@ def _write_cached_artifacts(
     return None
 
 
-def _rewrite_binder_button(md_path: Path, binder_url: str | None) -> None:
-    """Rewrite the Binder button URL in one rendered Markdown page.
+def _rewrite_binder_badge(md_path: Path, binder_url: str | None) -> None:
+    """Rewrite the Binder badge URL in one rendered Markdown page.
 
     This lets expensive gallery execution/render artifacts stay branch-agnostic in
     cache while still stamping the current branch/ref into the final page.
@@ -88,8 +88,9 @@ def _rewrite_binder_button(md_path: Path, binder_url: str | None) -> None:
 
     markdown = md_path.read_text(encoding="utf-8")
     updated = re.sub(
-        r"\[Launch in Binder\]\([^)]*\)\{ \.md-button \.md-button--primary \}",
-        f"[Launch in Binder]({binder_url}){{ .md-button .md-button--primary }}",
+        re.escape(render.BINDER_BADGE) + r"[^)]*\)",
+        # A function, so that the URL is taken as it is.
+        lambda _: f"{render.BINDER_BADGE}{binder_url})",
         markdown,
     )
     if updated != markdown:
@@ -181,7 +182,7 @@ def _build_one(
     interactive : bool
         Whether stdout is a TTY. When `False`, plain progress lines are printed.
     binder_url : str, optional
-        Binder launch URL to stamp into the page. If not provided, no button is added.
+        Binder launch URL to stamp into the page. If not provided, no badge is added.
     run : bool, default: True
         Whether to execute the example. When `False`, a cached result is still
         restored if present; otherwise the page is rendered from the source with no
@@ -232,7 +233,7 @@ def _build_one(
         if not interactive:
             print(f"-> {spec.section}/{base_name} [cached]", flush=True)
         thumb = _write_cached_artifacts(cache_entry, out_dir, base_name)
-        _rewrite_binder_button(out_dir / f"{base_name}.md", binder_url)
+        _rewrite_binder_badge(out_dir / f"{base_name}.md", binder_url)
         return RenderedExample(
             spec=spec,
             title=title,
@@ -357,10 +358,10 @@ def build_gallery(
         String identifying the execution/render inputs, used in cache keys.
     repo_root : pathlib.Path, optional
         Repository root, needed to compute Binder URLs. If not provided, no
-        Binder buttons are rendered.
+        Binder badges are rendered.
     binder_repo : str, optional
         `owner/repo` slug used for Binder URLs. If not provided, no Binder
-        buttons are rendered.
+        badges are rendered.
     binder_ref : str, default: "main"
         Git ref stamped into Binder URLs.
     only : Sequence[pathlib.Path], optional

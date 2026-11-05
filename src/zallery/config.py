@@ -10,7 +10,7 @@ Keys (all optional):
 - `examples`: directory of example sections, default `docs/examples`.
 - `built`: where rendered pages go, default `<examples>/_built`.
 - `cache`: execution/render cache directory, default `.gallery-cache`.
-- `binder_repo`: `owner/repo` slug for the Binder launch buttons; no buttons if unset.
+- `binder_repo`: `owner/repo` slug for the Binder launch badges; no badges if unset.
 - `hook`: dotted name of the module defining `gallery_retheme(fig, theme)`.
 - `fingerprint`: files whose content invalidates the cache when it changes,
   default `["uv.lock"]`. The `zallery` sources, the hook module and the table
@@ -62,7 +62,7 @@ class Config:
     cache : pathlib.Path
         Execution/render cache directory.
     binder_repo : str, optional
-        `owner/repo` slug for Binder launch buttons. If not provided, no buttons.
+        `owner/repo` slug for Binder launch badges. If not provided, no badges.
     hook : str, optional
         Dotted name of the project's theme hook module. If not provided, only the
         built-in swap runs.

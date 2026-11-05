@@ -12,6 +12,16 @@ import nbformat
 
 from zallery._types import HtmlThumbnail
 
+BINDER_BADGE = (
+    "[![Launch in Binder](https://mybinder.org/badge_logo.svg)"
+    "{ .skip-lightbox .gallery-binder }]("
+)
+"""Start of the Binder badge of a page, up to its launch URL.
+
+The image is the badge mybinder.org serves for READMEs. `zallery.pipeline` finds
+the badge of a cached page by this text, to stamp the current git ref into it.
+"""
+
 _ANSI_ESCAPE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 """ANSI control sequences (colors, cursor moves) in terminal-oriented output."""
 
@@ -425,7 +435,7 @@ def render_notebook(
     runtime_seconds : float
         Execution time printed at the bottom of the page.
     binder_url : str, optional
-        Binder launch URL for the page's button. If not provided, no button.
+        Binder launch URL for the page's badge. If not provided, no badge.
     html_thumbnail : HtmlThumbnail, optional
         Writes the thumbnails of an HTML output. If not provided, only an image
         output can be a thumbnail.
@@ -573,9 +583,7 @@ def render_notebook(
     parts.append(f"**Total running time:** {runtime_seconds:.1f} s\n\n")
     buttons: list[str] = []
     if binder_url is not None:
-        buttons.append(
-            f"[Launch in Binder]({binder_url}){{ .md-button .md-button--primary }}"
-        )
+        buttons.append(f"{BINDER_BADGE}{binder_url})")
     buttons.append(f"[Download .py]({base_name}.py){{ .md-button }}")
     buttons.append(f"[Download .ipynb]({base_name}.ipynb){{ .md-button }}")
     parts.append(" ".join(buttons) + "\n")

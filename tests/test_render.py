@@ -525,7 +525,7 @@ def test_render_handles_notebook_without_images(tmp_path: Path) -> None:
     assert thumbnail is None
 
 
-def test_render_adds_binder_button_when_url_given(tmp_path: Path) -> None:
+def test_render_adds_binder_badge_when_url_given(tmp_path: Path) -> None:
     nb = _make_nb()
     url = "https://mybinder.org/v2/gh/owner/repo/main?urlpath=lab/tree/foo/ex.py"
     md_path, _ = render_notebook(
@@ -538,11 +538,14 @@ def test_render_adds_binder_button_when_url_given(tmp_path: Path) -> None:
     )
 
     md = md_path.read_text()
-    assert f"[Launch in Binder]({url})" in md
-    assert ".md-button--primary" in md
+    # The badge mybinder.org serves for READMEs, linked to the launch URL.
+    assert (
+        "[![Launch in Binder](https://mybinder.org/badge_logo.svg)"
+        f"{{ .skip-lightbox .gallery-binder }}]({url})"
+    ) in md
 
 
-def test_render_omits_binder_button_when_url_missing(tmp_path: Path) -> None:
+def test_render_omits_binder_badge_when_url_missing(tmp_path: Path) -> None:
     nb = _make_nb()
     md_path, _ = render_notebook(
         nb,
@@ -553,8 +556,7 @@ def test_render_omits_binder_button_when_url_missing(tmp_path: Path) -> None:
     )
 
     md = md_path.read_text()
-    assert "Launch in Binder" not in md
-    assert ".md-button--primary" not in md
+    assert "Binder" not in md
 
 
 def _executed_nb_with_png(

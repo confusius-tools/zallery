@@ -227,15 +227,21 @@ are optional:
 | `examples` | `docs/examples` | Directory of example sections. |
 | `built` | `<examples>/_built` | Where rendered pages and images go. |
 | `cache` | `.gallery-cache` | Execution/render cache. |
-| `binder_repo` | unset | `owner/repo` for the Binder launch buttons. |
+| `binder_repo` | unset | `owner/repo` for the Binder launch badges. |
 | `hook` | unset | Dotted name of a module, importable from the project root, defining `gallery_retheme(fig, theme)`. |
 | `fingerprint` | `["uv.lock"]` | Files whose change invalidates the cache. |
 | `html_thumbnails` | `false` | Whether an HTML output may be an example's thumbnail: see [HTML thumbnails](#html-thumbnails). |
 | `html_thumbnail_css` | `[]` | Stylesheets of the site applied to HTML thumbnails. |
 | `light`, `dark` | none | Tables of presets for each color scheme. Their key so far is `matplotlib.palette`: see [Light and dark figures](#light-and-dark-figures). |
 
-The git ref stamped into Binder URLs comes from the `ZALLERY_BINDER_REF`
-environment variable (default `main`).
+With `binder_repo` set, each example page gets a Binder badge that opens its script
+on [mybinder.org](https://mybinder.org) as a notebook. The git ref stamped into
+Binder URLs comes from the `ZALLERY_BINDER_REF` environment variable (default
+`main`). The repository has to provide the Binder environment: one that installs
+the project and makes Jupyter open percent-format scripts as notebooks. This
+repository's
+[`binder/Dockerfile`](https://github.com/confusius-tools/zallery/blob/main/binder/Dockerfile)
+is a working setup.
 
 A cached example is reused while its source, the Python version, the configuration,
 the `fingerprint` files, the hook module, and the zallery sources are all unchanged.
@@ -259,7 +265,8 @@ zallery writes Markdown pages; the Zensical site provides the rest, in
   `<examples>/_assets/default_thumb.svg` and `<examples>/_assets/default_thumb_dark.svg`.
 - Optionally, styles for the classes zallery emits: `examples-cards` and
   `examples-card-summary` on the index page, `gallery-output` and
-  `gallery-rich-output` around cell outputs. This repository's
+  `gallery-rich-output` around cell outputs, `gallery-binder` on the Binder
+  badge. This repository's
   [`zensical.toml`](https://github.com/confusius-tools/zallery/blob/main/zensical.toml)
   and
   [stylesheet](https://github.com/confusius-tools/zallery/blob/main/docs/stylesheets/extra.css)
