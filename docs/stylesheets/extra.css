@@ -141,3 +141,40 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+/* Tell an output apart from the code cell above it: an outline instead of the code
+   fill, a small label, and less space between the two. */
+.gallery-output {
+  --md-code-bg-color: transparent;
+  margin: -0.5em 0 1em;
+}
+
+.gallery-output > .highlight,
+.gallery-output > .highlight pre {
+  margin: 0;
+}
+
+.gallery-output .highlight pre > code {
+  box-shadow: inset 0 0 0 0.05rem var(--md-default-fg-color--lighter);
+}
+
+.gallery-output::before {
+  content: "Output";
+  display: block;
+  margin-bottom: 0.25em;
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--md-default-fg-color--light);
+}
+
+/* One cell can emit several outputs (a print, then the value of its last
+   expression): label the first one only. */
+.gallery-output + .gallery-output {
+  margin-top: 0.5em;
+}
+
+.gallery-output + .gallery-output::before {
+  content: none;
+}
