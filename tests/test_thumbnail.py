@@ -40,7 +40,8 @@ def test_find_browser_returns_none_without_a_browser(no_browser: Path) -> None:
 def test_find_browser_searches_the_path(no_browser: Path) -> None:
     chromium = _executable(no_browser / "chromium")
 
-    assert find_browser() == str(chromium)
+    # As paths: Windows gives the suffix in the case of `PATHEXT`.
+    assert Path(find_browser() or "") == chromium
 
 
 def test_find_browser_finds_a_playwright_download(
@@ -54,7 +55,7 @@ def test_find_browser_finds_a_playwright_download(
         / "chrome-headless-shell"
     )
 
-    assert find_browser() == str(shell)
+    assert Path(find_browser() or "") == shell
 
 
 def test_find_browser_uses_only_the_configured_browser(
@@ -65,7 +66,7 @@ def test_find_browser_uses_only_the_configured_browser(
     mine = _executable(tmp_path / "elsewhere" / "my-browser")
 
     monkeypatch.setenv("ZALLERY_BROWSER", str(mine))
-    assert find_browser() == str(mine)
+    assert Path(find_browser() or "") == mine
 
     monkeypatch.setenv("ZALLERY_BROWSER", str(tmp_path / "missing"))
     assert find_browser() is None
@@ -105,11 +106,11 @@ def test_screenshot_html_reports_a_browser_that_fails(
 ) -> None:
     """A broken browser costs the thumbnail, not the build."""
     light, dark = tmp_path / "light.png", tmp_path / "dark.png"
+    browser = str(tmp_path / "missing-browser")
 
-    done = screenshot_html(
-        "<p>Hello</p>", light, dark, browser=str(tmp_path / "missing-browser")
-    )
+    done = screenshot_html("<p>Hello</p>", light, dark, browser=browser)
 
     assert not done
     assert not light.exists()
-    assert "missing-browser" in capsys.readouterr().err
+    # The warning names the browser itself: the system's error may not.
+    assert f"{browser} failed" in capsys.readouterr().err

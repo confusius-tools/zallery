@@ -202,7 +202,11 @@ def screenshot_html(
             try:
                 subprocess.run(command, check=True, capture_output=True, timeout=120)
             except (OSError, subprocess.SubprocessError) as error:
-                print(f"zallery: no HTML thumbnail, {error}", file=sys.stderr)
+                # Name the browser here: the error of the system may not.
+                print(
+                    f"zallery: no HTML thumbnail, {browser} failed: {error}",
+                    file=sys.stderr,
+                )
                 light_path.unlink(missing_ok=True)
                 return False
     return light_path.is_file() and dark_path.is_file()
