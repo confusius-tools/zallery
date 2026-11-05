@@ -30,7 +30,7 @@ fig
 # %% [markdown]
 # Click a continent in this sunburst chart to zoom in on its countries:
 
-# %%
+# %% tags=["thumbnail"]
 countries = px.data.gapminder().query("year == 2007")
 fig = px.sunburst(
     countries,
