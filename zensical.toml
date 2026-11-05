@@ -32,6 +32,7 @@ nav = [
             { "A pandas DataFrame" = "examples/_built/outputs/pandas.md" },
             { "xarray objects" = "examples/_built/outputs/xarray.md" },
             { "An HTML output as the thumbnail" = "examples/_built/outputs/html_thumbnail.md" },
+            { "Plotly figures" = "examples/_built/outputs/plotly.md" },
         ]},
     ]},
 ]
