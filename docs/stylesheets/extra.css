@@ -47,14 +47,11 @@
 [data-md-color-scheme="slate"] img[src$="#only-light"] { display: none; }
 [data-md-color-scheme="default"] img[src$="#only-dark"] { display: none; }
 
-/* Keep example tiles compact instead of stretching full-width when few are present. */
-.grid.cards.examples-cards > ul {
-  grid-template-columns: repeat(auto-fit, minmax(12.5rem, 14.5rem));
-  justify-content: start;
-}
-
-.grid.cards.examples-cards > ul > li {
-  max-width: 14.5rem;
+/* Three example tiles per row on a desktop screen. `auto-fill` keeps the empty
+   columns of a short row, so a section with one or two examples does not stretch
+   them. The grid is the `div`: its `ul` is `display: contents`. */
+.grid.cards.examples-cards {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 10rem), 1fr));
 }
 
 .grid.cards.examples-cards img {
