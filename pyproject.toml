@@ -1,0 +1,98 @@
+[project]
+name = "zallery"
+version = "0.1.0"
+description = "Build a light-and-dark example gallery for Zensical docs from jupytext scripts."
+readme = "README.md"
+license = "BSD-3-Clause"
+license-files = ["LICENSE", "NOTICE"]
+authors = [{ name = "Felipe Cybis Pereira" }]
+requires-python = ">=3.11,<3.15"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Operating System :: OS Independent",
+    "Intended Audience :: Developers",
+    "Topic :: Documentation",
+    "Topic :: Software Development :: Documentation",
+    "Typing :: Typed",
+]
+dependencies = [
+    "ipykernel>=6.29.0",
+    "ipython>=9.6.0",
+    "jupyter-client>=8.6.0",
+    "jupytext>=1.16.0",
+    "matplotlib>=3.11.0",
+    "matplotlib-inline>=0.1.7",
+    "nbclient>=0.10.0",
+    "nbformat>=5.10.0",
+    "numpy>=2.3.4",
+    "rich>=14.2.0",
+]
+
+[project.urls]
+Repository = "https://github.com/confusius-tools/zallery"
+Issues = "https://github.com/confusius-tools/zallery/issues"
+
+[project.scripts]
+zallery = "zallery.cli:main"
+
+[build-system]
+requires = ["uv-build>=0.9.5,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "codespell>=2.3.0",
+    "numpydoc>=1.11.0",
+    "prek>=0.4.8",
+    "pytest>=9.1.1",
+    "pytest-cov>=6.0.0",
+    "ruff>=0.16.5",
+    "ty>=0.0.77,<0.1.0",
+]
+
+[tool.numpydoc_validation]
+exclude = [
+    '\.__init__$',
+    '\._.*$',
+]
+checks = [
+    "all",
+    "GL01",
+    "ES01",
+    "SA01",
+    "EX01",
+]
+
+[tool.ruff]
+line-length = 88
+
+[tool.ty.src]
+include = ["src", "tests"]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+pythonpath = ["."]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+markers = [
+    "slow: tests that start kernels.",
+]
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+    "--import-mode=importlib",
+    "--showlocals",
+    "--cov=zallery",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+    "--cov-report=xml",
+]
+filterwarnings = ["error"]
