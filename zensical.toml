@@ -31,6 +31,7 @@ nav = [
             { "HTML outputs" = "examples/_built/outputs/html_outputs.md" },
             { "A pandas DataFrame" = "examples/_built/outputs/pandas.md" },
             { "xarray objects" = "examples/_built/outputs/xarray.md" },
+            { "An HTML output as the thumbnail" = "examples/_built/outputs/html_thumbnail.md" },
         ]},
     ]},
 ]

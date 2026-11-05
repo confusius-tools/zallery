@@ -6,7 +6,7 @@
 # pandas gives the table as HTML. zallery copies it to the page, and the site's
 # stylesheet gives it the look of a notebook table.
 
-# %%
+# %% tags=["thumbnail"]
 import numpy as np
 import pandas as pd
 

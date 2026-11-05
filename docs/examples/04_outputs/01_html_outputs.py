@@ -47,7 +47,7 @@ HTML("<p>Text with <strong>emphasis</strong> and <code>code</code>.</p>")
 # [Rich](https://rich.readthedocs.io) prints as HTML in a notebook, so its tables keep
 # their borders and alignment:
 
-# %%
+# %% tags=["thumbnail"]
 from rich.console import Console
 from rich.table import Table
 

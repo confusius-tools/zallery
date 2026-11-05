@@ -29,7 +29,7 @@ signal
 # %% [markdown]
 # A Dataset groups several variables that share coordinates:
 
-# %%
+# %% tags=["thumbnail"]
 dataset = xr.Dataset(
     {"signal": signal, "mean": signal.mean("time"), "peak": signal.max("time")},
     attrs={"title": "A small dataset"},

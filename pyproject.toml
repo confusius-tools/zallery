@@ -63,6 +63,9 @@ docs = [
 [tool.zallery]
 # The gallery of this project's own docs; build with `just gallery`.
 examples = "docs/examples"
+# An HTML output may be an example's thumbnail, styled as on the site.
+html_thumbnails = true
+html_thumbnail_css = ["docs/stylesheets/extra.css"]
 
 # The same hues on both pages: strong on light, softer on dark.
 [tool.zallery.light]
