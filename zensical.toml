@@ -27,6 +27,9 @@ nav = [
             { "Highlighted lines and a title" = "examples/_built/zensical/highlight_lines.md" },
             { "Code annotations" = "examples/_built/zensical/annotations.md" },
         ]},
+        { "Rich outputs" = [
+            { "HTML outputs" = "examples/_built/outputs/html_outputs.md" },
+        ]},
     ]},
 ]
 
