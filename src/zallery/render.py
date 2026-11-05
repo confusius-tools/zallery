@@ -9,6 +9,9 @@ from pathlib import Path
 
 import nbformat
 
+_ANSI_ESCAPE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+"""ANSI control sequences (colors, cursor moves) in terminal-oriented output."""
+
 
 def _join_str_list(value: object) -> str | None:
     """Join a list of strings, returning `None` for any other input."""
@@ -134,6 +137,9 @@ def _output_code_block(text: str) -> str:
     scrollbar, without affecting the syntax-highlighted input code cells. The
     `markdown` attribute lets Zensical still render the fence as a highlighted block.
 
+    ANSI escape sequences, such as the colors of an IPython traceback, are dropped:
+    a fenced block would show them verbatim.
+
     Parameters
     ----------
     text : str
@@ -146,7 +152,7 @@ def _output_code_block(text: str) -> str:
     """
     return (
         '<div class="gallery-output" markdown>\n\n```\n'
-        + text.rstrip("\n")
+        + _ANSI_ESCAPE.sub("", text).rstrip("\n")
         + "\n```\n\n</div>\n"
     )
 
