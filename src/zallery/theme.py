@@ -24,8 +24,12 @@ import matplotlib.style
 import numpy as np
 from matplotlib.artist import Artist
 from matplotlib.cm import ScalarMappable
+from matplotlib.collections import Collection
 from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
+from matplotlib.rcsetup import cycler
+
+from zallery._types import Palettes
 
 Printer = Callable[[Figure], tuple[str, dict[str, Any]] | None]
 """A matplotlib_inline figure printer: base64 PNG plus metadata, or `None` if empty."""
@@ -157,6 +161,55 @@ def swap_colors(artists: list[Artist], mapping: dict[str, str]) -> ExitStack:
     return restore
 
 
+def _swap_collection_colors(
+    artists: list[Artist], mapping: dict[str, str]
+) -> ExitStack:
+    """Replace the colors in `mapping` inside the color arrays of collections.
+
+    `swap_colors` leaves collections alone: a scatter plot, a filled area or the bars
+    of an error bar keep their colors as an array, one row per element. Here each row
+    matching a color in `mapping` is replaced; the row's alpha is kept. Colormapped
+    collections are skipped: their colors come from the data, and matplotlib computes
+    them again on every draw.
+
+    Parameters
+    ----------
+    artists : list[matplotlib.artist.Artist]
+        Artists to recolor in place; anything but a collection is ignored.
+    mapping : dict[str, str]
+        Colors to replace, mapped to their replacement.
+
+    Returns
+    -------
+    contextlib.ExitStack
+        Context manager restoring the colors the collections were given, so that a
+        link such as an edge color following the face color survives.
+    """
+    restore = ExitStack()
+    table = {mcolors.to_rgb(src): mcolors.to_rgb(dst) for src, dst in mapping.items()}
+    writes: list[tuple[Callable[[Any], Any], Any, np.ndarray]] = []
+    for artist in artists:
+        if not isinstance(artist, Collection) or artist.get_array() is not None:
+            continue
+        for slot in ("facecolor", "edgecolor"):
+            colors = np.array(getattr(artist, f"get_{slot}")(), dtype=float)
+            changed = False
+            for row in colors.reshape(-1, 4):
+                replacement = table.get(tuple(row[:3]))
+                if replacement is not None:
+                    row[:3] = replacement
+                    changed = True
+            if changed:
+                # The getter returns the resolved array; the color as it was given
+                # ("face", `None` for the default) is only kept privately.
+                original = getattr(artist, f"_original_{slot}")
+                writes.append((getattr(artist, f"set_{slot}"), original, colors))
+    for setter, original, colors in writes:
+        restore.callback(setter, original)
+        setter(colors)
+    return restore
+
+
 def swap_cmaps(artists: list[Artist], mapping: dict[str, str]) -> ExitStack:
     """Switch every mappable drawn with a colormap in `mapping` to its replacement.
 
@@ -193,11 +246,13 @@ def swap_cmaps(artists: list[Artist], mapping: dict[str, str]) -> ExitStack:
     return restore
 
 
-def retheme(fig: Figure, src: Theme, dst: Theme) -> ExitStack:
+def retheme(
+    fig: Figure, src: Theme, dst: Theme, palette: dict[str, str] | None = None
+) -> ExitStack:
     """Recolor a drawn figure from `src` to `dst` in place.
 
-    Only colors and colormaps that exactly match a `src` role are touched;
-    anything else the author chose on purpose is kept.
+    Only colors and colormaps that exactly match a `src` role or a `palette`
+    color are touched; anything else the author chose on purpose is kept.
 
     Parameters
     ----------
@@ -207,6 +262,11 @@ def retheme(fig: Figure, src: Theme, dst: Theme) -> ExitStack:
         Theme the figure is currently drawn with.
     dst : Theme
         Theme to recolor to.
+    palette : dict[str, str], optional
+        Colors of the default cycle to replace, mapped to their replacement.
+        Unlike the theme roles, they are also replaced inside collections. A
+        theme role wins over a palette entry for the same color. If not
+        provided, only the theme roles are swapped.
 
     Returns
     -------
@@ -215,11 +275,11 @@ def retheme(fig: Figure, src: Theme, dst: Theme) -> ExitStack:
     """
     artists = fig.findobj()
     # `bg` wins when `src` uses the same color for both backgrounds (`ON_BLACK`).
-    colors = {
-        getattr(src, role): getattr(dst, role) for role in ("axes_bg", "bg", "fg")
-    }
+    palette = palette or {}
+    roles = {getattr(src, role): getattr(dst, role) for role in ("axes_bg", "bg", "fg")}
     with ExitStack() as restore:
-        restore.enter_context(swap_colors(artists, colors))
+        restore.enter_context(swap_colors(artists, {**palette, **roles}))
+        restore.enter_context(_swap_collection_colors(artists, palette))
         restore.enter_context(
             swap_cmaps(artists, {src.diverging_cmap: dst.diverging_cmap})
         )
@@ -227,7 +287,11 @@ def retheme(fig: Figure, src: Theme, dst: Theme) -> ExitStack:
 
 
 def render_both(
-    fig: Figure, *, printer: Printer, hook: Hook | None = None
+    fig: Figure,
+    *,
+    printer: Printer,
+    hook: Hook | None = None,
+    palette: dict[str, str] | None = None,
 ) -> tuple[str, dict[str, Any]] | None:
     """Print `fig` under `LIGHT`, then under `DARK`, without re-executing anything.
 
@@ -243,6 +307,10 @@ def render_both(
         Project hook called after each theme swap. Returns a context manager that
         restores its changes, including when rendering fails. If not provided,
         nothing else is adjusted.
+    palette : dict[str, str], optional
+        Colors of the light color cycle, mapped to the color the dark rendering
+        shows instead (see `retheme`). If not provided, cycle colors are the
+        same in both renderings.
 
     Returns
     -------
@@ -259,7 +327,7 @@ def render_both(
         with retheme(fig, ON_BLACK, LIGHT) as restore:
             if hook is not None:
                 restore.enter_context(hook(fig, "light"))
-            return render_both(fig, printer=printer, hook=hook)
+            return render_both(fig, printer=printer, hook=hook, palette=palette)
     light = printer(fig)
     if light is None:
         return None
@@ -271,7 +339,7 @@ def render_both(
     with ExitStack() as restore:
         restore.callback(fig.set_layout_engine, fig.get_layout_engine())
         fig.set_layout_engine("none")
-        restore.enter_context(retheme(fig, LIGHT, DARK))
+        restore.enter_context(retheme(fig, LIGHT, DARK, palette))
         if hook is not None:
             restore.enter_context(hook(fig, "dark"))
         dark = printer(fig)
@@ -280,7 +348,9 @@ def render_both(
     return data, {**metadata, "dark": dark[0]}
 
 
-def setup_kernel(hook_module: str | None = None) -> None:
+def setup_kernel(
+    hook_module: str | None = None, palettes: Palettes | None = None
+) -> None:
     """Configure the running kernel: light rcParams, retina PNGs, dark hook.
 
     Must run before any example cell. `savefig.facecolor` is deliberately left at
@@ -293,6 +363,11 @@ def setup_kernel(hook_module: str | None = None) -> None:
         project hook called after each built-in swap (see `render_both`). It must
         be importable from the kernel. If not provided, only the built-in swap
         runs.
+    palettes : Palettes, optional
+        The light and the dark color cycle. Examples run with the light one;
+        the dark rendering shows each of its colors as the dark color at the
+        same position. If not provided, matplotlib's default cycle is used
+        for both.
     """
     from IPython import get_ipython
     from matplotlib_inline.backend_inline import set_matplotlib_formats
@@ -308,7 +383,10 @@ def setup_kernel(hook_module: str | None = None) -> None:
     warnings.filterwarnings(
         "ignore", message='install "ipywidgets" for Jupyter support'
     )
+    light, dark = palettes or ((), ())
     mpl.style.use("default")
+    if light:
+        mpl.rcParams["axes.prop_cycle"] = cycler(color=list(light))
     mpl.rcParams.update(
         {
             "figure.dpi": 160,
@@ -322,4 +400,9 @@ def setup_kernel(hook_module: str | None = None) -> None:
     shell = get_ipython()
     png_formatter = shell.display_formatter.formatters["image/png"]
     printer = png_formatter.lookup_by_type(Figure)
-    png_formatter.for_type(Figure, partial(render_both, printer=printer, hook=hook))
+    png_formatter.for_type(
+        Figure,
+        partial(
+            render_both, printer=printer, hook=hook, palette=dict(zip(light, dark))
+        ),
+    )

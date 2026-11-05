@@ -74,6 +74,10 @@ src/zallery/
   jupyter_client's default port selection races with outgoing connections on CI.
 - IPython swallows exceptions raised by a display formatter, so a failing hook
   shows up on the kernel's stderr, not as a cell error.
+- A collection's getters return resolved color arrays; the color as given (`"face"`,
+  `None`) lives in `_original_facecolor` and `_original_edgecolor`. The palette swap
+  restores from those, or an edge color stops following its face color. It skips
+  colormapped collections, whose colors matplotlib recomputes on draw.
 - Tab cells are written as raw HTML in the markup of `pymdownx.tabbed`, not with the
   `===` syntax: indented under `===`, an HTML output is parsed as Markdown text and
   mangled (styles, scripts, table cells). `md_in_html` is no help: it wraps the tab

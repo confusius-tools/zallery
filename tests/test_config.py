@@ -45,6 +45,7 @@ def test_load_config_defaults(tmp_path: Path) -> None:
     assert config.hook is None
     assert config.hook_file is None
     assert config.fingerprint_files == (tmp_path.resolve() / "uv.lock",)
+    assert config.matplotlib_palettes is None
 
 
 def test_load_config_searches_parent_directories(tmp_path: Path) -> None:
@@ -89,3 +90,75 @@ def test_deps_fingerprint_tracks_lockfile_hook_and_config(tmp_path: Path) -> Non
 
     assert len({baseline, after_lock, after_hook, after_config}) == 4
     assert deps_fingerprint(load_config(tmp_path)) == after_config
+
+
+def test_load_config_resolves_matplotlib_palettes_to_hex_colors(tmp_path: Path) -> None:
+    """A palette is a list of colors or the name of a listed matplotlib colormap."""
+    _write_pyproject(
+        tmp_path,
+        '[tool.zallery.light]\nmatplotlib.palette = ["red", "#0000ff"]\n'
+        '[tool.zallery.dark]\nmatplotlib.palette = "Set2"\n',
+    )
+
+    palettes = load_config(tmp_path).matplotlib_palettes
+
+    assert palettes == (
+        ("#ff0000", "#0000ff"),
+        (
+            "#66c2a5",
+            "#fc8d62",
+            "#8da0cb",
+            "#e78ac3",
+            "#a6d854",
+            "#ffd92f",
+            "#e5c494",
+            "#b3b3b3",
+        ),
+    )
+
+
+def test_load_config_fills_in_the_palette_not_given(tmp_path: Path) -> None:
+    """Light defaults to matplotlib's own cycle, dark to the light palette."""
+    _write_pyproject(tmp_path, '[tool.zallery.dark]\nmatplotlib.palette = "tab20"\n')
+    light, dark = load_config(tmp_path).matplotlib_palettes or ((), ())
+    assert light[:2] == ("#1f77b4", "#ff7f0e")
+    assert len(light) == 10
+    assert len(dark) == 20
+
+    _write_pyproject(tmp_path, '[tool.zallery.light]\nmatplotlib.palette = "Dark2"\n')
+    light, dark = load_config(tmp_path).matplotlib_palettes or ((), ())
+    assert light[0] == "#1b9e77"
+    assert dark == light
+
+
+@pytest.mark.parametrize(
+    ("tables", "message"),
+    [
+        ('[tool.zallery.light]\nmatplotlib.palette = "NoSuchMap"\n', "NoSuchMap"),
+        # A continuous colormap has no list of colors to cycle through.
+        ('[tool.zallery.light]\nmatplotlib.palette = "coolwarm"\n', "coolwarm"),
+        ('[tool.zallery.light]\nmatplotlib.palette = ["red", "nocolor"]\n', "nocolor"),
+        ("[tool.zallery.light]\nmatplotlib.palette = 3\n", "palette"),
+        ("[tool.zallery.light]\nmatplotlib.palette = []\n", "palette"),
+        ('[tool.zallery.light]\nseaborn.palette = "deep"\n', "seaborn"),
+        ('[tool.zallery.dark]\nmatplotlib.cmap = "viridis"\n', "cmap"),
+        # Eight colors cannot pair with the ten of matplotlib's default cycle.
+        ('[tool.zallery.dark]\nmatplotlib.palette = "Set2"\n', "fewer"),
+    ],
+)
+def test_load_config_rejects_bad_palettes(
+    tmp_path: Path, tables: str, message: str
+) -> None:
+    _write_pyproject(tmp_path, tables)
+
+    with pytest.raises(ConfigError, match=message):
+        load_config(tmp_path)
+
+
+def test_deps_fingerprint_tracks_matplotlib_palettes(tmp_path: Path) -> None:
+    _write_pyproject(tmp_path, "")
+    baseline = deps_fingerprint(load_config(tmp_path))
+
+    _write_pyproject(tmp_path, '[tool.zallery.light]\nmatplotlib.palette = "Dark2"\n')
+
+    assert deps_fingerprint(load_config(tmp_path)) != baseline

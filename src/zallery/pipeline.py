@@ -18,7 +18,7 @@ from rich.progress import (
 )
 
 from zallery import cache, discover, execute, index, render
-from zallery._types import ExampleSpec, RenderedExample
+from zallery._types import ExampleSpec, Palettes, RenderedExample
 
 
 def _python_version() -> str:
@@ -161,6 +161,7 @@ def _build_one(
     use_cache: bool = True,
     hook_module: str | None = None,
     hook_root: Path | None = None,
+    palettes: Palettes | None = None,
 ) -> RenderedExample:
     """Build one example and return its rendered metadata.
 
@@ -194,6 +195,9 @@ def _build_one(
         `zallery.execute.execute_example`.
     hook_root : pathlib.Path, optional
         Directory the kernel needs on `sys.path` to import `hook_module`.
+    palettes : Palettes, optional
+        The light and the dark matplotlib color cycle, passed to
+        `zallery.execute.execute_example`.
 
     Returns
     -------
@@ -269,6 +273,7 @@ def _build_one(
         on_cell_executed=_advance_on_cell(progress, task),
         hook_module=hook_module,
         hook_root=hook_root,
+        palettes=palettes,
     )
 
     if not interactive:
@@ -330,6 +335,7 @@ def build_gallery(
     use_cache: bool = True,
     hook_module: str | None = None,
     hook_root: Path | None = None,
+    palettes: Palettes | None = None,
 ) -> None:
     """Run the full pipeline and write the gallery to disk.
 
@@ -369,6 +375,10 @@ def build_gallery(
     hook_root : pathlib.Path, optional
         Directory put on each kernel's `sys.path` so `hook_module` is importable,
         typically the project root.
+    palettes : Palettes, optional
+        The light and the dark matplotlib color cycle (see
+        `zallery.theme.setup_kernel`). If not provided, matplotlib's default
+        cycle is used on both pages.
 
     Raises
     ------
@@ -405,6 +415,7 @@ def build_gallery(
                     use_cache=use_cache,
                     hook_module=hook_module,
                     hook_root=hook_root,
+                    palettes=palettes,
                     built_dir=built_dir,
                     cache_root=cache_root,
                     deps_fingerprint=deps_fingerprint,

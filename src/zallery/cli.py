@@ -89,6 +89,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             use_cache=not args.no_cache,
             hook_module=config.hook,
             hook_root=config.root,
+            palettes=config.matplotlib_palettes,
         )
     except ValueError as exc:
         print(exc, file=sys.stderr)

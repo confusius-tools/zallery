@@ -15,6 +15,9 @@ Keys (all optional):
 - `fingerprint`: files whose content invalidates the cache when it changes,
   default `["uv.lock"]`. The `zallery` sources, the hook module and the table
   itself are always part of the fingerprint.
+- `light` and `dark`: tables of presets for each color scheme. Their only key so
+  far is `matplotlib.palette`, the default color cycle: the name of a listed
+  matplotlib colormap (`"Set2"`) or a list of colors.
 """
 
 from __future__ import annotations
@@ -25,12 +28,14 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import zallery
+from zallery._types import Palettes
 
 _TABLE = "zallery"
 """Name of the table under `[tool]`."""
 
 _KNOWN_KEYS = frozenset(
     {"examples", "built", "cache", "binder_repo", "hook", "fingerprint"}
+    | {"light", "dark"}
 )
 """Keys the table may contain; anything else is a typo and rejected."""
 
@@ -60,6 +65,9 @@ class Config:
         built-in swap runs.
     fingerprint_files : tuple[pathlib.Path, ...]
         Files whose content is part of the cache fingerprint.
+    matplotlib_palettes : Palettes, optional
+        The light and the dark matplotlib color cycle. If not provided,
+        matplotlib's default cycle is used on both pages.
     """
 
     root: Path
@@ -69,6 +77,7 @@ class Config:
     binder_repo: str | None
     hook: str | None
     fingerprint_files: tuple[Path, ...]
+    matplotlib_palettes: Palettes | None = None
 
     @property
     def hook_file(self) -> Path | None:
@@ -110,6 +119,132 @@ def find_pyproject(start: Path) -> Path | None:
     return None
 
 
+def _only_key(table: object, key: str, where: str) -> object:
+    """Return the value of `key` in a table that may hold no other key.
+
+    Parameters
+    ----------
+    table : object
+        The parsed TOML value expected to be a table.
+    key : str
+        The one key the table may contain.
+    where : str
+        Name of the table, for the error message.
+
+    Returns
+    -------
+    object
+        The value of `key`, or `None` if the table does not have it.
+
+    Raises
+    ------
+    ConfigError
+        If `table` is not a table or has any other key.
+    """
+    if not isinstance(table, dict):
+        raise ConfigError(f"{where} must be a table.")
+    unknown = sorted(set(table) - {key})
+    if unknown:
+        raise ConfigError(
+            f"Unknown keys in {where}: {', '.join(unknown)}. Known keys: {key}."
+        )
+    return table.get(key)
+
+
+def _resolve_palette(value: object, where: str) -> tuple[str, ...]:
+    """Return a palette given by name or as a list of colors, as hex colors.
+
+    Parameters
+    ----------
+    value : object
+        The parsed TOML value: the name of a listed matplotlib colormap, or a
+        non-empty list of matplotlib colors.
+    where : str
+        Name of the key, for the error message.
+
+    Returns
+    -------
+    tuple[str, ...]
+        The colors as `#rrggbb` strings.
+
+    Raises
+    ------
+    ConfigError
+        If `value` is neither, or holds something matplotlib cannot read as a color.
+    """
+    # Imported here so that a project without palettes does not pay for matplotlib.
+    import matplotlib as mpl
+    import matplotlib.colors as mcolors
+
+    if isinstance(value, str):
+        colors = getattr(mpl.colormaps.get(value), "colors", None)
+        if colors is None:
+            raise ConfigError(
+                f"{where} = {value!r} is not a listed matplotlib colormap such as "
+                '"Set2". Give such a name or a list of colors.'
+            )
+    elif isinstance(value, list) and value:
+        colors = value
+    else:
+        raise ConfigError(
+            f"{where} must be the name of a listed matplotlib colormap or a "
+            "non-empty list of colors."
+        )
+    try:
+        return tuple(mcolors.to_hex(color) for color in colors)
+    except (ValueError, TypeError) as exc:
+        raise ConfigError(f"{where}: {exc}") from None
+
+
+def _matplotlib_palettes(table: dict[str, object]) -> Palettes | None:
+    """Return the palettes set by the `light` and `dark` tables, if any.
+
+    Parameters
+    ----------
+    table : dict[str, object]
+        The `[tool.zallery]` table.
+
+    Returns
+    -------
+    Palettes or None
+        The light and the dark palette. A missing light palette is matplotlib's
+        default cycle; a missing dark palette is the light one. `None` if neither
+        table sets a palette.
+
+    Raises
+    ------
+    ConfigError
+        If a table is malformed, or the dark palette is shorter than the light one.
+    """
+    given: dict[str, tuple[str, ...]] = {}
+    for scheme in ("light", "dark"):
+        where = f"[tool.zallery.{scheme}]"
+        package = _only_key(table.get(scheme, {}), "matplotlib", where)
+        if package is None:
+            continue
+        palette = _only_key(package, "palette", f"{where} matplotlib")
+        if palette is not None:
+            given[scheme] = _resolve_palette(palette, f"{where} matplotlib.palette")
+    if not given:
+        return None
+
+    import matplotlib as mpl
+
+    default = _resolve_palette(
+        mpl.rcParamsDefault["axes.prop_cycle"].by_key()["color"], "default cycle"
+    )
+    light = given.get("light", default)
+    dark = given.get("dark", light)
+    if len(dark) < len(light):
+        raise ConfigError(
+            f"The dark matplotlib palette has {len(dark)} colors, fewer than the "
+            f"light one ({len(light)}): every light color needs a dark counterpart. "
+            "Without [tool.zallery.light] matplotlib.palette, the light palette is "
+            "matplotlib's default cycle."
+        )
+    return light, dark
+
+
 def load_config(start: Path) -> Config:
     """Load the configuration that applies to `start`.
 
@@ -128,7 +263,7 @@ def load_config(start: Path) -> Config:
     ------
     ConfigError
         If no `pyproject.toml` with a `[tool.zallery]` table is found, or the table
-        has unknown keys.
+        has unknown keys or a malformed value.
     """
     pyproject = find_pyproject(start)
     if pyproject is None:
@@ -157,6 +292,7 @@ def load_config(start: Path) -> Config:
         fingerprint_files=tuple(
             root / p for p in table.get("fingerprint", ["uv.lock"])
         ),
+        matplotlib_palettes=_matplotlib_palettes(table),
     )
 
 
@@ -185,6 +321,7 @@ def deps_fingerprint(config: Config) -> str:
                 "built": str(config.built.relative_to(config.root)),
                 "binder_repo": config.binder_repo,
                 "hook": config.hook,
+                "matplotlib_palettes": config.matplotlib_palettes,
             },
             sort_keys=True,
         )

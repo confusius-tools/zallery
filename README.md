@@ -130,6 +130,30 @@ What this means when writing an example:
 - Images not drawn by matplotlib (PIL images, screenshots) are shown unchanged in
   both themes.
 
+To give each color scheme its own default colors, set a palette for each one in
+`pyproject.toml`:
+
+```toml
+[tool.zallery.light]
+matplotlib.palette = "Dark2"
+
+[tool.zallery.dark]
+matplotlib.palette = "Set2"
+```
+
+A palette is the name of a listed matplotlib colormap (`"Set2"`, `"tab10"`) or a
+list of colors. Examples run with the light palette as matplotlib's color cycle. On
+the dark page, each color of the light palette is replaced by the color at the same
+position of the dark palette, so the dark palette needs at least as many colors.
+
+- Without a light palette, the light page uses matplotlib's default cycle. Without
+  a dark palette, both pages show the light one.
+- Palette colors are also replaced in scatter plots, filled areas and other
+  collections, unlike the theme colors above. Colormapped data keeps its colormap.
+- Only exact palette colors are replaced. A color derived from one (lightened, or
+  desaturated as seaborn does for bars) stays as drawn. A color you set yourself
+  that equals a palette color is replaced too.
+
 When the built-in swap is not enough, point the `hook` key at a module of the
 project that defines `gallery_retheme(fig, theme)`. It runs in the kernel after a
 theme swap and returns a context manager that restores what it changed, also when
@@ -167,6 +191,7 @@ are optional:
 | `binder_repo` | unset | `owner/repo` for the Binder launch buttons. |
 | `hook` | unset | Dotted name of a module, importable from the project root, defining `gallery_retheme(fig, theme)`. |
 | `fingerprint` | `["uv.lock"]` | Files whose change invalidates the cache. |
+| `light`, `dark` | none | Tables of presets for each color scheme. Their key so far is `matplotlib.palette`: see [Light and dark figures](#light-and-dark-figures). |
 
 The git ref stamped into Binder URLs comes from the `ZALLERY_BINDER_REF`
 environment variable (default `main`).

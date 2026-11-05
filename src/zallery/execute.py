@@ -15,6 +15,8 @@ import nbformat
 from jupyter_client.manager import KernelManager
 from nbclient import NotebookClient
 
+from zallery._types import Palettes
+
 OnCellExecuted = Callable[..., None]
 """Hook invoked after each cell finishes.
 
@@ -24,7 +26,9 @@ injected setup cell is `cell_index == 0`.
 """
 
 
-def _setup_source(hook_module: str | None, hook_root: Path | None) -> str:
+def _setup_source(
+    hook_module: str | None, hook_root: Path | None, palettes: Palettes | None
+) -> str:
     """Return the code of the setup cell run before the example.
 
     Parameters
@@ -36,6 +40,10 @@ def _setup_source(hook_module: str | None, hook_root: Path | None) -> str:
         Directory inserted at the front of the kernel's `sys.path` so that
         `hook_module` is importable. If not provided, the kernel's default path is
         used as is.
+    palettes : Palettes, optional
+        The light and the dark matplotlib color cycle, passed to
+        `zallery.theme.setup_kernel`. If not provided, matplotlib's default
+        cycle is used for both.
 
     Returns
     -------
@@ -47,7 +55,7 @@ def _setup_source(hook_module: str | None, hook_root: Path | None) -> str:
         lines += ["import sys", f"sys.path.insert(0, {str(hook_root)!r})"]
     lines += [
         "from zallery.theme import setup_kernel",
-        f"setup_kernel({hook_module!r})",
+        f"setup_kernel({hook_module!r}, {palettes!r})",
     ]
     return "\n".join(lines)
 
@@ -157,6 +165,7 @@ def execute_example(
     on_cell_executed: OnCellExecuted | None = None,
     hook_module: str | None = None,
     hook_root: Path | None = None,
+    palettes: Palettes | None = None,
 ) -> tuple[nbformat.NotebookNode, float]:
     """Execute one percent-format `.py` example end-to-end.
 
@@ -174,6 +183,10 @@ def execute_example(
         theme swap runs.
     hook_root : pathlib.Path, optional
         Directory put on the kernel's `sys.path` so `hook_module` is importable.
+    palettes : Palettes, optional
+        The light and the dark matplotlib color cycle (see
+        `zallery.theme.setup_kernel`). If not provided, matplotlib's default
+        cycle is used for both.
 
     Returns
     -------
@@ -190,7 +203,8 @@ def execute_example(
     """
     notebook = read_example(source)
     setup_cell = nbformat.v4.new_code_cell(
-        _setup_source(hook_module, hook_root), metadata={"tags": ["_gallery_internal"]}
+        _setup_source(hook_module, hook_root, palettes),
+        metadata={"tags": ["_gallery_internal"]},
     )
     notebook.cells.insert(0, setup_cell)
 

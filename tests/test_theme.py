@@ -145,6 +145,59 @@ def test_retheme_swaps_diverging_colormaps_including_derived(figure) -> None:
     assert figure["scatter"].get_cmap().name == LIGHT.diverging_cmap
 
 
+_PALETTE = {"#ff0000": "#ffaaaa", "#0000ff": "#aaaaff"}
+
+
+def test_retheme_swaps_palette_colors_in_artists_and_collections(figure) -> None:
+    """A palette color becomes its counterpart wherever it is drawn, then comes back."""
+    ax = figure["ax1"]
+    (line,) = ax.plot([0, 1], color="#ff0000")
+    points = ax.scatter([0, 1], [0, 1], c="#0000ff")
+    band = ax.fill_between([0, 1], [0, 1], color="#ff0000", alpha=0.3)
+    kept = ax.scatter([0, 1], [1, 0], color="#00ff00")
+
+    with retheme(figure["fig"], LIGHT, DARK, _PALETTE):
+        assert mcolors.to_hex(line.get_color()) == "#ffaaaa"
+        assert mcolors.to_hex(points.get_facecolor()[0]) == "#aaaaff"
+        assert band.get_facecolor()[0] == pytest.approx(mcolors.to_rgba("#ffaaaa", 0.3))
+        assert mcolors.to_hex(kept.get_facecolor()[0]) == "#00ff00"
+
+    assert line.get_color() == "#ff0000"
+    assert mcolors.to_hex(points.get_facecolor()[0]) == "#0000ff"
+    assert band.get_facecolor()[0] == pytest.approx(mcolors.to_rgba("#ff0000", 0.3))
+    # The scatter's edge color still follows its face color.
+    points.set_facecolor("#00ff00")
+    assert mcolors.to_hex(points.get_edgecolor()[0]) == "#00ff00"
+
+
+def test_retheme_leaves_colormapped_collections_alone(figure) -> None:
+    """Colormapped data is not palette data, even where the colors coincide."""
+    mapped = figure["ax1"].scatter(
+        [0, 1], [0, 1], c=[0, 1], cmap=mcolors.ListedColormap(["#ff0000", "#0000ff"])
+    )
+    figure["fig"].canvas.draw()
+    drawn = mapped.get_facecolor().copy()
+
+    with retheme(figure["fig"], LIGHT, DARK, _PALETTE):
+        assert np.array_equal(mapped.get_facecolor(), drawn)
+
+    assert np.array_equal(mapped.get_facecolor(), drawn)
+
+
+def test_render_both_draws_only_the_dark_page_with_the_dark_palette(figure) -> None:
+    (line,) = figure["ax1"].plot([0, 1], color="#ff0000")
+    printed: list[str] = []
+
+    def printer(fig):
+        printed.append(mcolors.to_hex(line.get_color()))
+        return "png", {}
+
+    render_both(figure["fig"], printer=printer, palette=_PALETTE)
+
+    assert printed == ["#ff0000", "#ffaaaa"]
+    assert line.get_color() == "#ff0000"
+
+
 def test_swap_colors_replaces_listed_colors_and_restores_them(figure) -> None:
     artists = figure["fig"].findobj()
 
