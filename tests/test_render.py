@@ -18,6 +18,17 @@ from zallery.plotly import MIME, Plotly
 from zallery.render import render_notebook
 from zallery.xarray import Xarray
 
+_PY_BADGE = (
+    "[![Download .py](https://img.shields.io/badge/"
+    "download-.py-3776AB?logo=python&logoColor=white)"
+    "{ .skip-lightbox .gallery-download }](ex.py)"
+)
+_IPYNB_BADGE = (
+    "[![Download .ipynb](https://img.shields.io/badge/"
+    "download-.ipynb-F37626?logo=jupyter&logoColor=white)"
+    "{ .skip-lightbox .gallery-download }](ex.ipynb)"
+)
+
 
 def _make_nb(*, thumbnail: bool = False) -> nbformat.NotebookNode:
     nb = nbformat.v4.new_notebook()
@@ -71,8 +82,11 @@ def test_render_writes_markdown_with_code_and_output(tmp_path: Path) -> None:
     assert "ex_output_light/cell_03_0_light.png#only-light" in md
     assert "ex_output_dark/cell_03_0_dark.png#only-dark" in md
     assert "**Total running time:** 4.3 s" in md
-    assert "[Download .py](ex.py)" in md
-    assert "[Download .ipynb](ex.ipynb)" in md
+    # The downloads are badges, as the Binder one: the logo of the file type and
+    # its extension, linked to the file next to the page.
+    assert _PY_BADGE in md
+    assert _IPYNB_BADGE in md
+    assert "md-button" not in md
 
 
 @pytest.mark.parametrize(
@@ -705,10 +719,13 @@ def test_render_adds_binder_badge_when_url_given(tmp_path: Path) -> None:
 
     md = md_path.read_text()
     # The badge mybinder.org serves for READMEs, linked to the launch URL.
-    assert (
+    binder = (
         "[![Launch in Binder](https://mybinder.org/badge_logo.svg)"
         f"{{ .skip-lightbox .gallery-binder }}]({url})"
-    ) in md
+    )
+    assert binder in md
+    # The three badges share the last line of the page, Binder first.
+    assert md.rstrip().splitlines()[-1] == f"{binder} {_PY_BADGE} {_IPYNB_BADGE}"
 
 
 def test_render_omits_binder_badge_when_url_missing(tmp_path: Path) -> None:

@@ -166,8 +166,9 @@
   color: var(--md-default-fg-color--light);
 }
 
-/* The Binder badge sits on the line of the download buttons, which are taller. */
-.gallery-binder {
+/* The Binder badge and the download badges share the last line of a page. */
+.gallery-binder,
+.gallery-download {
   vertical-align: middle;
   margin-right: 0.4rem;
 }

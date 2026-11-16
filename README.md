@@ -406,6 +406,11 @@ are optional:
 | `html_thumbnails` | `false` | Whether an HTML output may be an example's thumbnail: see [HTML thumbnails](#html-thumbnails). |
 | `html_thumbnail_css` | `[]` | Stylesheets of the site applied to HTML thumbnails. |
 
+Each example page ends with two badges that download the example, as a `.py`
+script and as an `.ipynb` notebook. Their images come from
+[shields.io](https://shields.io), as the image of the Binder badge comes from
+mybinder.org: a reader's browser fetches them from there.
+
 With `binder_repo` set, each example page gets a Binder badge that opens its script
 on [mybinder.org](https://mybinder.org) as a notebook. The git ref stamped into
 Binder URLs comes from the `ZALLERY_BINDER_REF` environment variable (default
@@ -445,8 +450,8 @@ Zallery writes Markdown pages; the Zensical site provides the rest, in
   `gallery-rich-output` around cell outputs, with `gallery-html-light` or
   `gallery-html-dark` on an HTML output that has a variant for each scheme,
   `gallery-plotly` on plotly figures, `gallery-scene` on PyVista scenes,
-  `gallery-binder` on the Binder
-  badge. This repository's
+  `gallery-binder` on the Binder badge and `gallery-download` on the two download
+  badges. This repository's
   [`zensical.toml`](https://github.com/confusius-tools/zallery/blob/main/zensical.toml)
   and
   [stylesheet](https://github.com/confusius-tools/zallery/blob/main/docs/stylesheets/extra.css)

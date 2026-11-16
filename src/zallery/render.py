@@ -28,6 +28,21 @@ The image is the badge mybinder.org serves for READMEs. `zallery.pipeline` finds
 the badge of a cached page by this text, to stamp the current git ref into it.
 """
 
+_DOWNLOAD_BADGE = (
+    "[![Download {extension}](https://img.shields.io/badge/"
+    "download-{extension}-{color}?logo={logo}&logoColor=white)"
+    "{{ .skip-lightbox .gallery-download }}]({name}{extension})"
+)
+"""Badge that downloads one form of an example, to fill in with `str.format`.
+
+A static badge of shields.io, in the look of the Binder one: the logo and the
+word "download" on the left, the file extension on the right, in the color of the
+logo.
+"""
+
+_DOWNLOADS = ((".py", "python", "3776AB"), (".ipynb", "jupyter", "F37626"))
+"""Extension, shields.io logo and color of each download badge, in page order."""
+
 ERROR_MARK = "<!-- zallery: a cell of this example raised -->"
 """Comment ending the page of an example that raised.
 
@@ -878,8 +893,12 @@ def render_notebook(
     buttons: list[str] = []
     if binder_url is not None:
         buttons.append(f"{BINDER_BADGE}{binder_url})")
-    buttons.append(f"[Download .py]({base_name}.py){{ .md-button }}")
-    buttons.append(f"[Download .ipynb]({base_name}.ipynb){{ .md-button }}")
+    buttons.extend(
+        _DOWNLOAD_BADGE.format(
+            extension=extension, logo=logo, color=color, name=base_name
+        )
+        for extension, logo, color in _DOWNLOADS
+    )
     parts.append(" ".join(buttons) + "\n")
     if failed:
         parts.append(ERROR_MARK + "\n")
