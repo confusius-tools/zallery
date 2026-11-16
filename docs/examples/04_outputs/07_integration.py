@@ -51,7 +51,7 @@ class Badge:
 #
 # - `type` is the dotted name of the class to handle. A class that an example
 #   defines is in the `__main__` module of its kernel; a class of a library has
-#   the name of its module, such as `"matplotlib.figure.Figure"`.
+#   the name you import it with, such as `"matplotlib.figure.Figure"`.
 # - Zallery calls `retheme` before it shows the object for each scheme. The method
 #   changes the object and returns a context manager that puts everything back, or
 #   `None` when it has nothing to change. Here the two colors are swapped for the

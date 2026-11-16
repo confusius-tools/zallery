@@ -49,3 +49,18 @@ def test_retheme_swaps_the_theme_colors_and_restores_them() -> None:
         assert plotter.renderers[0].background_color.float_rgb == light
     finally:
         plotter.close()
+
+
+@needs_pyvista
+def test_an_unknown_theme_names_the_attribute() -> None:
+    import pyvista
+
+    class Bad(PyVista):
+        themes = ("DocumentTheme", "NoSuchTheme")
+
+    plotter = pyvista.Plotter(off_screen=True)
+    try:
+        with pytest.raises(ValueError, match=r"^Bad\.themes"):
+            Bad().retheme(plotter, "dark")
+    finally:
+        plotter.close()

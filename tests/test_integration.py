@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib
 import re
 import sys
 from collections.abc import Iterator
@@ -211,3 +212,57 @@ def test_setup_kernel_sets_up_then_installs_each_class(
         "install one",
         "install two",
     ]
+
+
+_BADGES = (
+    "class Badge:\n"
+    "    color = 'black'\n"
+    "    def _repr_html_(self):\n"
+    "        return f'<p style=\"color:{self.color}\">badge</p>'\n"
+    "class Outer:\n"
+    "    class Inner(Badge):\n"
+    "        pass\n"
+)
+
+
+def _package(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, package: str) -> None:
+    """Write a package that defines `Badge` in a submodule and re-exports it."""
+    (tmp_path / package).mkdir()
+    (tmp_path / package / "__init__.py").write_text(
+        f"from {package}.badge import Badge, Outer\n"
+    )
+    (tmp_path / package / "badge.py").write_text(_BADGES)
+    monkeypatch.syspath_prepend(tmp_path)
+
+
+def test_a_type_is_the_name_a_class_is_imported_with(
+    shell: InteractiveShell, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`mylib.Badge` names a class that `mylib/badge.py` defines."""
+    _package(tmp_path, monkeypatch, "t11_alias")
+
+    class Badges(Cards):
+        type = "t11_alias.Badge"
+
+    Badges()._install(shell)
+    # The library is imported after the kernel is set up, by the example.
+    library = importlib.import_module("t11_alias")
+    (output,) = _shown(library.Badge())
+    assert "color:white" in output.metadata["text/html"]["dark"]
+
+
+def test_a_type_may_name_a_class_nested_in_another(
+    shell: InteractiveShell, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _package(tmp_path, monkeypatch, "t11_nested")
+
+    class Inners(Cards):
+        type = "t11_nested.badge.Outer.Inner"
+
+    Inners()._install(shell)
+    library = importlib.import_module("t11_nested")
+    (output,) = _shown(library.Outer.Inner())
+    assert "color:white" in output.metadata["text/html"]["dark"]
+    # The class it derives from is not of that type.
+    (plain,) = _shown(library.Badge())
+    assert "dark" not in plain.metadata.get("text/html", {})

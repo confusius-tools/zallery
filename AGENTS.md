@@ -34,7 +34,7 @@ just docs          # gallery, then `zensical build --strict`
 just serve-docs    # gallery, then serve the docs locally
 ```
 
-Run a single test: `uv run pytest tests/test_theme.py::test_name`.
+Run a single test: `uv run pytest tests/test_matplotlib.py::test_name`.
 
 The docs site (`zensical.toml`, `docs/`) is small on purpose: the home page includes
 `README.md`, and `docs/examples/` is a gallery built by Zallery itself. Each example
@@ -108,19 +108,40 @@ classes when it loads the configuration.
   (`ipykernel.kernelspec.get_kernel_dict`) says it reads them: jupyter_client's
   `transport_encryption` decides from the installed kernel spec instead, which can
   belong to another ipykernel.
-- IPython swallows exceptions raised by a display formatter, so a `retheme` that
-  fails for a matplotlib figure, or for an object of the generic capture, shows up
-  on the kernel's stderr, not as a cell error; the object is then shown with its
-  light look alone. A `retheme` that fails for a plotly figure raises in the cell.
+- IPython swallows exceptions raised by a display formatter and drops the output
+  of that formatter. An output must not be lost for its dark look, so each capture
+  keeps the light one when the dark one fails:
+  - matplotlib: `_print_both` catches the error, prints the traceback on stderr
+    and returns the light PNG alone. Without that, the figure would show as its
+    text repr only.
+  - generic capture: the error leaves `_display`, IPython reports it and shows the
+    object through its usual formatters.
+  - PyVista: `_show_plots` displays the picture `show()` took, closes the plotter,
+    and raises once every plotter of the cell is handled.
+  - plotly: the error raises in the cell for `fig.show()`. For a figure shown as
+    the last expression, IPython reports it and the figure shows with no dark
+    figure.
+- Colors and palettes of a `Matplotlib` subclass are checked in `__init__`, which
+  the builder runs when it loads the configuration: a bad one is a `ConfigError`.
+  Colormap names are checked when a figure uses them: an example may register its
+  own.
 - The stock integration modules are named after their libraries (`matplotlib.py`,
   `plotly.py`, `pyvista.py`, `xarray.py`). They reach the library by absolute
   import, and only `matplotlib.py` imports its library at module level: the others
   must stay importable without it, in the builder and on CI.
 - `Integration.retheme` takes its arguments by position only, so that a subclass
   names the object as it likes (`fig`, `plotter`).
-- The generic capture (`Integration._display`) registers a handler by type name on
-  IPython's `ipython_display_formatter`, and switches that formatter off while it
-  formats the object, or `format` would come back to the handler.
+- The generic capture (`Integration._install`) wraps `lookup_by_type` of
+  IPython's `ipython_display_formatter`, to register the class of `type` once an
+  example has imported it. IPython's own `for_type_by_name` matches a class by
+  `__module__` and `__name__` only: not by the name it is imported with
+  (`pandas.DataFrame`), nor a nested class. The wrapper writes `type_printers`
+  directly: `for_type` looks the class up first, which would recurse.
+  `Integration._display` switches that formatter off while it formats the object,
+  or `format` would come back to the handler.
+- A matplotlib figure on a pure black background may still hold colors of the
+  light look (axes left at their default): for the dark page both the light look
+  and the black one are swapped, the black one last.
 - The builder puts the project root on `sys.path` to import the classes a project
   lists, and leaves it there. A test that writes such a module uses a module name
   of its own: `sys.modules` keeps the first one.

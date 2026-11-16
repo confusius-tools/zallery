@@ -271,6 +271,57 @@ def test_a_bad_palette_names_the_attribute(palette) -> None:
         Bad()
 
 
+@pytest.mark.parametrize(
+    ("attribute", "value"),
+    [
+        ("colors", {"not-a-color": "#ffffff"}),
+        ("colors", {"#ffffff": "not-a-color"}),
+        ("background", ("#ffffff", "not-a-color")),
+        ("axes_background", ("#ffffff",)),
+        ("foreground", "black"),
+    ],
+)
+def test_a_bad_color_names_the_attribute(attribute, value) -> None:
+    """A color matplotlib cannot read fails when the class is instantiated."""
+
+    class Bad(Matplotlib):
+        pass
+
+    setattr(Bad, attribute, value)
+    with pytest.raises(ValueError, match=rf"^Bad\.{attribute}"):
+        Bad()
+
+
+def test_an_unknown_colormap_names_the_attribute_and_leaves_the_figure(figure) -> None:
+    """Colormaps may be registered by the example: they are checked when used."""
+
+    class Bad(Matplotlib):
+        cmaps = {"coolwarm": "no_such_cmap"}
+
+    with pytest.raises(ValueError, match=r"^Bad\.cmaps"):
+        Bad().retheme(figure["fig"], "dark")
+
+    assert figure["scatter"].get_cmap().name == "coolwarm"
+    assert figure["fig"].get_facecolor() == pytest.approx(mcolors.to_rgba(LIGHT_BG))
+
+
+def test_a_figure_on_black_with_light_axes_gets_dark_axes() -> None:
+    """Only the figure is black: its axes, drawn light, still turn dark."""
+    with matplotlib.rc_context():
+        Matplotlib().setup()
+        fig, ax = plt.subplots(facecolor="black")
+        try:
+            assert mcolors.to_hex(ax.get_facecolor()) == LIGHT_AXES
+            with _look(Matplotlib(), fig, "dark"):
+                assert mcolors.to_hex(fig.get_facecolor()) == DARK_BG
+                assert mcolors.to_hex(ax.get_facecolor()) == DARK_AXES
+            with _look(Matplotlib(), fig, "light"):
+                assert mcolors.to_hex(fig.get_facecolor()) == LIGHT_BG
+                assert mcolors.to_hex(ax.get_facecolor()) == LIGHT_AXES
+        finally:
+            plt.close(fig)
+
+
 def test_a_palette_is_a_colormap_name_or_a_list_and_defaults_fill_in() -> None:
     """No light palette is matplotlib's default cycle; no dark one is the light one."""
 
@@ -380,8 +431,14 @@ def test_print_both_preserves_automatic_marker_colors() -> None:
         plt.close(fig)
 
 
-def test_print_both_restores_original_state_when_printing_fails(figure) -> None:
-    """A failed dark print must restore colormap objects, colors and layout."""
+def test_print_both_restores_original_state_when_printing_fails(
+    figure, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A failed dark print must restore colormap objects, colors and layout.
+
+    The light rendering is kept, and the error is reported: a figure is not lost
+    for its dark look.
+    """
     fig = figure["fig"]
     image = figure["image"]
     cmap = image.get_cmap()
@@ -395,8 +452,8 @@ def test_print_both_restores_original_state_when_printing_fails(figure) -> None:
             raise RuntimeError("dark print failed")
         return "png", {}
 
-    with pytest.raises(RuntimeError, match="dark print failed"):
-        _Sequential()._print_both(fig, printer=printer)
+    assert _Sequential()._print_both(fig, printer=printer) == ("png", {})
+    assert "dark print failed" in capsys.readouterr().err
 
     assert image.get_cmap() is cmap
     assert sequential.get_cmap().name == "inferno_r"
@@ -467,16 +524,24 @@ def test_print_both_restores_what_a_subclass_changes(figure) -> None:
     assert figure["ax1"].get_title() == "title"
 
 
-def test_print_both_restores_light_when_retheme_raises(figure) -> None:
+def test_print_both_keeps_the_light_rendering_when_retheme_raises(
+    figure, capsys: pytest.CaptureFixture[str]
+) -> None:
     class Broken(Matplotlib):
         def retheme(self, fig, scheme):
             if scheme == "dark":
                 raise RuntimeError("retheme broke")
             return super().retheme(fig, scheme)
 
-    with pytest.raises(RuntimeError, match="retheme broke"):
-        Broken()._print_both(figure["fig"], printer=partial(retina_figure, base64=True))
+    result = Broken()._print_both(
+        figure["fig"], printer=partial(retina_figure, base64=True)
+    )
 
+    assert result is not None
+    data, metadata = result
+    assert "dark" not in metadata
+    assert _corner_rgb(data) == pytest.approx(mcolors.to_rgb(LIGHT_BG), abs=1 / 255)
+    assert "retheme broke" in capsys.readouterr().err
     assert figure["fig"].get_facecolor() == pytest.approx(mcolors.to_rgba(LIGHT_BG))
     assert (
         figure["fig"].get_layout_engine().__class__.__name__

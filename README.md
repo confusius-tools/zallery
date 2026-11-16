@@ -214,7 +214,8 @@ Subclass one to change it, or subclass `zallery.Integration` for a display Zalle
 does not know. A class has one attribute and three methods, all optional:
 
 - `type` is the dotted name of the class whose objects it handles, subclasses
-  included, such as `"matplotlib.figure.Figure"`.
+  included, such as `"matplotlib.figure.Figure"`: the name you import the class
+  with.
 - `setup()` runs in the kernel, once, before the first cell of the example. It
   prepares the library for the light scheme.
 - `retheme(obj, scheme)` runs in the kernel. Zallery calls it for `"light"`, then
@@ -238,6 +239,12 @@ integrations = ["tools.gallery:Figures", "tools.gallery:Badges"]
 
 - A class that subclasses one of Zallery's takes its place.
 - Any other class is added.
+- A color or a palette that matplotlib cannot read stops the build before it runs
+  an example, with a message naming the attribute. A colormap name is checked when
+  a figure uses it.
+- An output is not lost for its dark look: if `retheme` fails for the dark scheme,
+  the output shows with its light look in both schemes, and the error shows under
+  the cell.
 
 When data is not enough, override `retheme`. `super().retheme(...)` gives the
 context manager of the stock class, or `None`:

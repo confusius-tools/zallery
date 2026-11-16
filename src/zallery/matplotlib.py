@@ -11,7 +11,8 @@ drawn artists and printing again.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping, Sequence
+import traceback
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from contextlib import ExitStack
 from functools import partial
 from typing import TYPE_CHECKING, Any
@@ -195,19 +196,22 @@ def swap_cmaps(artists: list[Artist], mapping: dict[str, str]) -> ExitStack:
     contextlib.ExitStack
         Context manager restoring the original colormaps.
     """
-    restore = ExitStack()
-    for mappable in artists:
-        if not isinstance(mappable, ScalarMappable):
-            continue
-        cmap = mappable.get_cmap()
-        source = getattr(cmap, "source", None)
-        with_source = getattr(cmap, "with_source", None)
-        derived = source is not None and with_source is not None
-        name = source.name if derived else cmap.name
-        if name in mapping:
-            restore.callback(mappable.set_cmap, cmap)
-            mappable.set_cmap(with_source(mapping[name]) if derived else mapping[name])
-    return restore
+    # A name matplotlib does not know raises: what is switched by then is put back.
+    with ExitStack() as restore:
+        for mappable in artists:
+            if not isinstance(mappable, ScalarMappable):
+                continue
+            cmap = mappable.get_cmap()
+            source = getattr(cmap, "source", None)
+            with_source = getattr(cmap, "with_source", None)
+            derived = source is not None and with_source is not None
+            name = source.name if derived else cmap.name
+            if name in mapping:
+                restore.callback(mappable.set_cmap, cmap)
+                mappable.set_cmap(
+                    with_source(mapping[name]) if derived else mapping[name]
+                )
+        return restore.pop_all()
 
 
 class Matplotlib(Integration):
@@ -260,15 +264,55 @@ class Matplotlib(Integration):
     }
 
     def __init__(self) -> None:
-        """Resolve the palettes.
+        """Check the colors and resolve the palettes.
+
+        Colormap names are not checked here: an example may register its own.
 
         Raises
         ------
         ValueError
-            If `palette` is malformed. The message starts with the name of the
-            class and of the attribute.
+            If a color attribute or `palette` is malformed. The message starts
+            with the name of the class and of the attribute.
         """
+        for attribute in ("background", "axes_background", "foreground"):
+            pair = getattr(self, attribute)
+            if not isinstance(pair, tuple) or len(pair) != 2:
+                raise ValueError(
+                    f"{type(self).__name__}.{attribute}: give a pair of colors, "
+                    f"(light, dark), not {pair!r}."
+                )
+            self._check_colors(attribute, pair)
+        if not isinstance(self.colors, Mapping):
+            # A bad value of a class attribute, as the other cases are: one kind
+            # of error for the configuration to catch.
+            raise ValueError(  # noqa: TRY004
+                f"{type(self).__name__}.colors: give a mapping of colors, "
+                f"{{light: dark}}, not {self.colors!r}."
+            )
+        self._check_colors("colors", [*self.colors, *self.colors.values()])
         self._cycles = self._resolve_palette()
+
+    def _check_colors(self, attribute: str, colors: Iterable[Any]) -> None:
+        """Raise if matplotlib cannot read one of the colors of an attribute.
+
+        Parameters
+        ----------
+        attribute : str
+            Name of the attribute, for the error message.
+        colors : Iterable[Any]
+            The colors it holds.
+
+        Raises
+        ------
+        ValueError
+            If one is not a color. The message starts with the name of the class
+            and of the attribute.
+        """
+        for color in colors:
+            try:
+                mcolors.to_rgb(color)
+            except (ValueError, TypeError) as exc:
+                raise ValueError(f"{type(self).__name__}.{attribute}: {exc}") from None
 
     def _palette_colors(self, value: Palette) -> tuple[str, ...]:
         """Return one palette, given by name or as a list of colors, as hex colors.
@@ -381,6 +425,13 @@ class Matplotlib(Integration):
             for the light scheme and a figure drawn light: nothing to change. A
             figure on black is recolored for both schemes; for the light one,
             `cmaps` and `colors` apply in reverse.
+
+        Raises
+        ------
+        ValueError
+            If `cmaps` names a colormap matplotlib does not know. The message
+            starts with the name of the class and of the attribute; the figure is
+            left as it came.
         """
         on_black = mcolors.to_rgb(fig.get_facecolor()) == mcolors.to_rgb(_ON_BLACK[0])
         if scheme == "light" and not on_black:
@@ -391,11 +442,14 @@ class Matplotlib(Integration):
             self.axes_background[index],
             self.foreground[index],
         )
-        drawn = (
-            _ON_BLACK
-            if on_black
-            else (self.background[0], self.axes_background[0], self.foreground[0])
-        )
+        light = (self.background[0], self.axes_background[0], self.foreground[0])
+        # The figure background last: it wins where figure and axes share a color
+        # (a figure on black).
+        roles: dict[str, str] = {}
+        for drawn in (light,) * (scheme == "dark") + (_ON_BLACK,) * on_black:
+            # What a figure on black holds of the light look (axes left at their
+            # default, for one) turns dark too; its black is background, not text.
+            roles |= {drawn[1]: target[1], drawn[0]: target[0], drawn[2]: target[2]}
         if scheme == "light":
             colors = {dark: light for light, dark in self.colors.items()}
             cmaps = {dark: light for light, dark in self.cmaps.items()}
@@ -403,14 +457,15 @@ class Matplotlib(Integration):
             palette = dict(zip(*self._cycles)) if self._cycles is not None else {}
             colors = {**palette, **self.colors}
             cmaps = dict(self.cmaps)
-        # The figure background last: it wins where figure and axes share a color
-        # (a figure on black). A theme color wins over a palette color.
-        roles = {drawn[1]: target[1], drawn[0]: target[0], drawn[2]: target[2]}
         artists = fig.findobj()
         with ExitStack() as restore:
+            # A theme color wins over a palette color.
             restore.enter_context(swap_colors(artists, {**colors, **roles}))
             restore.enter_context(_swap_collection_colors(artists, colors))
-            restore.enter_context(swap_cmaps(artists, cmaps))
+            try:
+                restore.enter_context(swap_cmaps(artists, cmaps))
+            except (ValueError, KeyError) as exc:
+                raise ValueError(f"{type(self).__name__}.cmaps: {exc}") from None
             return restore.pop_all()
 
     def _print_both(
@@ -430,6 +485,8 @@ class Matplotlib(Integration):
         tuple[str, dict[str, Any]] or None
             The light rendering and its metadata, with the dark rendering added
             under `"dark"`. `None` when `printer` returns `None` (an empty figure).
+            The light rendering alone when the dark one fails: the error is
+            reported on the standard error, and the figure is not lost for it.
 
         Notes
         -----
@@ -447,13 +504,19 @@ class Matplotlib(Integration):
         if light is None:
             return None
         data, metadata = light
-        with ExitStack() as restore:
-            restore.callback(fig.set_layout_engine, fig.get_layout_engine())
-            fig.set_layout_engine("none")
-            look = self.retheme(fig, "dark")
-            if look is not None:
-                restore.enter_context(look)
-            dark = printer(fig)
+        try:
+            with ExitStack() as restore:
+                restore.callback(fig.set_layout_engine, fig.get_layout_engine())
+                fig.set_layout_engine("none")
+                look = self.retheme(fig, "dark")
+                if look is not None:
+                    restore.enter_context(look)
+                dark = printer(fig)
+        except Exception:  # noqa: BLE001
+            # Whatever the `retheme` of a subclass raises: IPython would swallow
+            # the error and drop the whole output.
+            traceback.print_exc()
+            return light
         if dark is None:
             return light
         return data, {**metadata, "dark": dark[0]}

@@ -173,11 +173,20 @@ class PyVista(Integration):
         contextlib.ExitStack or None
             Context manager restoring the colors. `None` for the light scheme:
             the plotter is drawn light already.
+
+        Raises
+        ------
+        ValueError
+            If `themes` names no theme of PyVista. The message starts with the
+            name of the class and of the attribute.
         """
         if scheme == "light":
             return None
         themes = sys.modules["pyvista"].themes
-        light, dark = (getattr(themes, name)() for name in self.themes)
+        try:
+            light, dark = (getattr(themes, name)() for name in self.themes)
+        except (AttributeError, TypeError, ValueError) as exc:
+            raise ValueError(f"{type(self).__name__}.themes: {exc}") from None
         ink = {
             light.font.color.float_rgb: dark.font.color.float_rgb,
             light.edge_color.float_rgb: dark.edge_color.float_rgb,
@@ -216,6 +225,10 @@ class PyVista(Integration):
         With trame-pyvista installed, pyvista also exports the scene of each
         plotter it shows, for a browser to draw. The light and the dark scene go
         in the output of the picture and in its metadata, under `SCENE_MIME`.
+
+        A plot is not lost for a look that fails: its picture as `show()` took it
+        is displayed, the plotter is closed, and the error is raised once every
+        plotter is handled, for IPython to report.
         """
         pyvista = sys.modules.get("pyvista")
         if pyvista is None:
@@ -223,6 +236,7 @@ class PyVista(Integration):
         from IPython.display import Image, display
 
         plotters = pyvista.plotting.plotter._ALL_PLOTTERS
+        failures: list[Exception] = []
         for key, plotter in list(plotters.items()):
             # `show()` takes the picture; a project may have it close the plotter too.
             if plotter.last_image is None and not plotter._closed:
@@ -238,24 +252,31 @@ class PyVista(Integration):
                 export = scene is not None
                 metadata: dict[str, dict[str, str]] = {}
                 if not plotter._closed:
-                    look = self.retheme(plotter, "light")
-                    if look is not None:
-                        with look:
-                            image, scene = _take(plotter, scene=export)
-                    look = self.retheme(plotter, "dark")
-                    if look is not None:
-                        with look:
-                            dark, dark_scene = _take(plotter, scene=export)
-                        metadata["image/png"] = {"dark": _png_text(dark)}
-                        if dark_scene is not None:
-                            metadata[SCENE_MIME] = {
-                                "dark": base64.b64encode(dark_scene).decode()
-                            }
+                    try:
+                        look = self.retheme(plotter, "light")
+                        if look is not None:
+                            with look:
+                                image, scene = _take(plotter, scene=export)
+                        look = self.retheme(plotter, "dark")
+                        if look is not None:
+                            with look:
+                                dark, dark_scene = _take(plotter, scene=export)
+                            metadata["image/png"] = {"dark": _png_text(dark)}
+                            if dark_scene is not None:
+                                metadata[SCENE_MIME] = {
+                                    "dark": base64.b64encode(dark_scene).decode()
+                                }
+                    except Exception as failure:  # noqa: BLE001
+                        # Whatever the `retheme` of a subclass raises: raised
+                        # below, once the picture is shown and the plotter closed.
+                        failures.append(failure)
                     plotter.close()
                 data = {"image/png": _png_text(image)}
                 if scene is not None:
                     data[SCENE_MIME] = base64.b64encode(scene).decode()
                 display(data, metadata=metadata, raw=True)
+        if failures:
+            raise failures[0]
 
     def _install(self, shell: InteractiveShell) -> None:
         """Have the kernel show, after each cell, the plotters the cell showed.

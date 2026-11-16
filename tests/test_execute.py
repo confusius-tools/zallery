@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import socket
 import sys
 from pathlib import Path
@@ -220,3 +221,33 @@ def test_execute_gives_a_plotly_figure_its_dark_figure_however_it_is_shown(
         dark = output.metadata[mime]["dark"]["layout"]["template"]["layout"]
         assert light["paper_bgcolor"] == dark["paper_bgcolor"] == "rgba(0,0,0,0)"
         assert dark["font"]["color"] != light["font"]["color"]
+
+
+@pytest.mark.slow
+@pytest.mark.skipif(
+    importlib.util.find_spec("pyvista") is None, reason="needs pyvista (the docs group)"
+)
+def test_execute_keeps_a_pyvista_picture_whose_dark_look_fails(tmp_path: Path) -> None:
+    """A plot is not lost for its dark look: the light picture shows, with the error."""
+    (tmp_path / "t11_pyvista.py").write_text(
+        "from zallery.pyvista import PyVista\n"
+        "class Bad(PyVista):\n"
+        "    themes = ('DocumentTheme', 'NoSuchTheme')\n"
+    )
+    src = tmp_path / "ex.py"
+    src.write_text(
+        "# %%\nimport pyvista as pv\n\n"
+        "plotter = pv.Plotter()\n_ = plotter.add_mesh(pv.Sphere())\nplotter.show()\n"
+    )
+
+    notebook, _ = execute_example(
+        src, timeout=120, integrations=["t11_pyvista:Bad"], root=tmp_path
+    )
+
+    outputs = notebook.cells[0].outputs
+    pictures = [o for o in outputs if "image/png" in o.get("data", {})]
+    assert len(pictures) == 1
+    assert "dark" not in pictures[0].metadata.get("image/png", {})
+    # IPython reports what a callback raises: the cell shows the traceback.
+    reported = "".join("".join(o.get("traceback", [])) for o in outputs)
+    assert "Bad.themes" in reported

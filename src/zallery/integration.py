@@ -14,6 +14,7 @@ example; `html` runs in the builder.
 from __future__ import annotations
 
 import importlib
+import sys
 import warnings
 from collections.abc import Sequence
 from contextlib import AbstractContextManager, ExitStack
@@ -46,8 +47,9 @@ class Integration:
     ----------
     type : str or None
         Dotted name of the class whose objects `retheme` handles, subclasses
-        included, such as `"matplotlib.figure.Figure"`. `None` for an integration
-        with nothing to retheme in the kernel.
+        included, such as `"matplotlib.figure.Figure"`: the name an example
+        imports the class with, or the one of the module that defines it. `None`
+        for an integration with nothing to retheme in the kernel.
     """
 
     type: str | None = None
@@ -108,21 +110,47 @@ class Integration:
         """Have the kernel show the objects of `type` once for each scheme.
 
         The generic capture: it serves any object IPython's formatters can show.
-        The class is registered by name, so that its library is not imported
-        before an example uses it. A stock class whose library does not display
-        through the formatters replaces this method.
+        The library of the class is not imported: the class is looked up by name
+        each time IPython shows an object, and registered once an example has
+        imported it. IPython's own registration by name would match only the
+        module that defines a class, not the name it is imported with
+        (`pandas.DataFrame`), nor a class nested in another. A stock class whose
+        library does not display through the formatters replaces this method.
 
         Parameters
         ----------
         shell : IPython.core.interactiveshell.InteractiveShell
             The shell of the kernel.
         """
-        if self.type is None:
+        dotted = self.type
+        if dotted is None:
             return
-        module, _, cls = self.type.rpartition(".")
         # IPython annotates the formatter as optional; a running shell has one.
         handler = shell.display_formatter.ipython_display_formatter  # ty: ignore[unresolved-attribute]
-        handler.for_type_by_name(module, cls, partial(self._display, shell=shell))
+        show = partial(self._display, shell=shell)
+        lookup = handler.lookup_by_type
+
+        def lookup_by_type(typ: Any) -> Any:
+            """Register the class if it is imported by now, then look up as usual.
+
+            Parameters
+            ----------
+            typ : type
+                The class of the object IPython is about to show.
+
+            Returns
+            -------
+            Callable
+                The handler IPython has for that class.
+            """
+            cls = _resolve(dotted)
+            if cls is not None and cls not in handler.type_printers:
+                # Not `for_type`: it looks the class up first, which is this.
+                handler.type_printers[cls] = show
+            return lookup(typ)
+
+        # The one place IPython passes through for every object it shows.
+        handler.lookup_by_type = lookup_by_type
 
     def _display(self, obj: Any, *, shell: InteractiveShell) -> None:
         """Publish one output for an object: its light look, the dark one beside it.
@@ -162,6 +190,31 @@ class Integration:
             if mime != "text/plain" and payload != data.get(mime):
                 metadata.setdefault(mime, {})["dark"] = payload
         publish_display_data(data, metadata)
+
+
+def _resolve(dotted: str) -> type | None:
+    """Return the class a dotted name designates, if its module is imported.
+
+    Parameters
+    ----------
+    dotted : str
+        A class as `"module.Class"`; the class may be nested in another.
+
+    Returns
+    -------
+    type or None
+        The class. `None` while no module of that name is imported, or if the
+        rest of the name is not a class of it.
+    """
+    parts = dotted.split(".")
+    for count in range(len(parts) - 1, 0, -1):
+        obj: Any = sys.modules.get(".".join(parts[:count]))
+        if obj is None:
+            continue
+        for part in parts[count:]:
+            obj = getattr(obj, part, None)
+        return obj if isinstance(obj, type) else None
+    return None
 
 
 def name(cls: type[Integration]) -> str:
