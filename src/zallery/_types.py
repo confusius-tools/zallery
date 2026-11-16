@@ -55,7 +55,25 @@ class ExampleSpec:
 
 @dataclass(frozen=True)
 class RenderedExample:
-    """An example after the renderer has produced its artifacts."""
+    """An example after the renderer has produced its artifacts.
+
+    Attributes
+    ----------
+    spec : ExampleSpec
+        The example file.
+    title : str
+        Title of the page.
+    summary : str
+        First paragraph of the page, shown over the card on hover.
+    md_path : pathlib.Path
+        The rendered Markdown page.
+    thumbnail_light : pathlib.Path or None
+        Thumbnail for the light color scheme, or `None` if the example has none.
+    thumbnail_dark : pathlib.Path or None
+        Thumbnail for the dark color scheme, or `None` if the example has none.
+    failed : bool
+        Whether a cell of the example raised.
+    """
 
     spec: ExampleSpec
     title: str
@@ -63,3 +81,4 @@ class RenderedExample:
     md_path: Path
     thumbnail_light: Path | None
     thumbnail_dark: Path | None
+    failed: bool = False

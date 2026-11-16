@@ -112,6 +112,10 @@ src/zallery/
   rendering. With trame-pyvista installed, `show()` also keeps the scene exported
   for vtk.js (`last_vtksz`): the hook puts it in the picture's output, and the page
   shows it in an iframe of trame-vtk's standalone viewer.
+- The page of an example that raised ends with the comment `render.ERROR_MARK`,
+  which the pipeline reads to pick the error thumbnail. A comment, not a file: the
+  state has to come back from the cache, and nothing removes a stale file from
+  `_built` once the example is fixed.
 - Tab cells are written as raw HTML in the markup of `pymdownx.tabbed`, not with the
   `===` syntax: indented under `===`, an HTML output is parsed as Markdown text and
   mangled (styles, scripts, table cells). `md_in_html` is no help: it wraps the tab

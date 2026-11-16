@@ -12,6 +12,10 @@ from zallery._types import RenderedExample
 _DEFAULT_THUMB_LIGHT = "_assets/default_thumb.svg"
 _DEFAULT_THUMB_DARK = "_assets/default_thumb_dark.svg"
 
+_ERROR_THUMB_LIGHT = "_assets/error_thumb.svg"
+_ERROR_THUMB_DARK = "_assets/error_thumb_dark.svg"
+"""Thumbnails of an example that raised, if the examples root has both files."""
+
 _INDEX_HEADER = "_index.md"
 """File in the examples root whose content opens the index page, if present."""
 
@@ -60,16 +64,26 @@ def _demote_h1(text: str) -> str:
 
 
 def _card_image_markdown(rex: RenderedExample, *, root: Path, href: str) -> str:
-    """Return theme-aware thumbnail markup for one example card."""
-    if rex.thumbnail_light is None or rex.thumbnail_dark is None:
-        return (
-            f'[<img class="skip-lightbox" src="{_DEFAULT_THUMB_LIGHT}#only-light" alt="Example thumbnail">'
-            f'<img class="skip-lightbox" src="{_DEFAULT_THUMB_DARK}#only-dark" alt="Example thumbnail">]({href})'
-        )
+    """Return theme-aware thumbnail markup for one example card.
 
-    light = rex.thumbnail_light.relative_to(root).as_posix()
-    dark = rex.thumbnail_dark.relative_to(root).as_posix()
-    alt = html_lib.escape(rex.title, quote=True)
+    An example that raised shows the error thumbnails, whatever its own: the card
+    must show the fault. Without error thumbnails in the examples root, it is
+    treated as any other example.
+    """
+    if (
+        rex.failed
+        and (root / _ERROR_THUMB_LIGHT).is_file()
+        and (root / _ERROR_THUMB_DARK).is_file()
+    ):
+        light, dark = _ERROR_THUMB_LIGHT, _ERROR_THUMB_DARK
+        alt = "Example that raised an error"
+    elif rex.thumbnail_light is None or rex.thumbnail_dark is None:
+        light, dark = _DEFAULT_THUMB_LIGHT, _DEFAULT_THUMB_DARK
+        alt = "Example thumbnail"
+    else:
+        light = rex.thumbnail_light.relative_to(root).as_posix()
+        dark = rex.thumbnail_dark.relative_to(root).as_posix()
+        alt = html_lib.escape(rex.title, quote=True)
     return (
         f'[<img class="skip-lightbox" src="{light}#only-light" alt="{alt}">'
         f'<img class="skip-lightbox" src="{dark}#only-dark" alt="{alt}">]({href})'

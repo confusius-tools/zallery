@@ -199,3 +199,45 @@ def test_build_index_header_comes_from_index_file_when_present(tmp_path: Path) -
     custom = build_index([], root=tmp_path)
 
     assert custom == "# Gallery\n\nProject intro.\n\n"
+
+
+def _failed_example(root: Path) -> RenderedExample:
+    """Return an example that raised, with a figure thumbnail of its own."""
+    src = root / "io" / "broken.py"
+    src.parent.mkdir(parents=True, exist_ok=True)
+    src.touch()
+    built = root / "_built" / "io"
+    return RenderedExample(
+        spec=_spec(src, "io"),
+        title="Broken",
+        summary="",
+        md_path=built / "broken.md",
+        thumbnail_light=built / "broken_thumb_light.png",
+        thumbnail_dark=built / "broken_thumb_dark.png",
+        failed=True,
+    )
+
+
+def test_build_index_marks_an_example_that_raised_with_the_error_thumbnail(
+    tmp_path: Path,
+) -> None:
+    """The error thumbnail wins over the example's own: the card must show the fault."""
+    assets = tmp_path / "_assets"
+    assets.mkdir()
+    (assets / "error_thumb.svg").write_text("<svg/>")
+    (assets / "error_thumb_dark.svg").write_text("<svg/>")
+
+    md = build_index([_failed_example(tmp_path)], root=tmp_path)
+
+    assert 'src="_assets/error_thumb.svg#only-light"' in md
+    assert 'src="_assets/error_thumb_dark.svg#only-dark"' in md
+    assert "broken_thumb_light.png" not in md
+
+
+def test_build_index_keeps_the_thumbnail_of_a_failed_example_without_error_assets(
+    tmp_path: Path,
+) -> None:
+    md = build_index([_failed_example(tmp_path)], root=tmp_path)
+
+    assert "_built/io/broken_thumb_light.png#only-light" in md
+    assert "error_thumb" not in md

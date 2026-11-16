@@ -77,6 +77,11 @@ def _write_cached_artifacts(
     return None
 
 
+def _raised(md_path: Path) -> bool:
+    """Return whether a rendered page is that of an example that raised."""
+    return render.ERROR_MARK in md_path.read_text(encoding="utf-8")
+
+
 def _rewrite_binder_badge(md_path: Path, binder_url: str | None) -> None:
     """Rewrite the Binder badge URL in one rendered Markdown page.
 
@@ -241,6 +246,7 @@ def _build_one(
             md_path=out_dir / f"{base_name}.md",
             thumbnail_light=thumb[0] if thumb is not None else None,
             thumbnail_dark=thumb[1] if thumb is not None else None,
+            failed=_raised(out_dir / f"{base_name}.md"),
         )
 
     if not run:
@@ -315,6 +321,7 @@ def _build_one(
         md_path=out_dir / f"{base_name}.md",
         thumbnail_light=thumb[0] if thumb is not None else None,
         thumbnail_dark=thumb[1] if thumb is not None else None,
+        failed=_raised(out_dir / f"{base_name}.md"),
     )
 
 

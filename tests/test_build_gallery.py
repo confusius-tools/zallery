@@ -246,3 +246,30 @@ def test_build_gallery_embeds_binder_launch_url(gallery_paths: GalleryPaths) -> 
     md = (built_dir / "io" / "hello.md").read_text()
     assert f"]({expected.replace('v9.9.9', 'main')})" in md
     assert "v9.9.9" not in md
+
+
+@pytest.mark.slow
+def test_build_gallery_shows_the_error_thumbnail_of_an_example_that_raises(
+    gallery_paths: GalleryPaths,
+) -> None:
+    """Also from the cache: the second build does not run the example again."""
+    examples_root, built_dir, cache_root = gallery_paths
+    for name in ("error_thumb.svg", "error_thumb_dark.svg"):
+        (examples_root / "_assets" / name).write_text("<svg/>")
+    _seed_example(examples_root, "io", "fine", "# %%\nprint('hi')\n")
+    _seed_example(examples_root, "io", "broken", "# %%\nraise ValueError('no')\n")
+
+    for _ in range(2):
+        build_gallery(
+            examples_root=examples_root,
+            built_dir=built_dir,
+            cache_root=cache_root,
+            deps_fingerprint="testdeps==1.0",
+        )
+
+        index = (examples_root / "index.md").read_text()
+        cards = {
+            card.split("](")[1].split(")")[0]: card for card in index.split("-   ")[1:]
+        }
+        assert "error_thumb.svg#only-light" in cards["_built/io/broken.md"]
+        assert "default_thumb.svg#only-light" in cards["_built/io/fine.md"]

@@ -25,6 +25,13 @@ The image is the badge mybinder.org serves for READMEs. `zallery.pipeline` finds
 the badge of a cached page by this text, to stamp the current git ref into it.
 """
 
+ERROR_MARK = "<!-- zallery: a cell of this example raised -->"
+"""Comment ending the page of an example that raised.
+
+`zallery.pipeline` reads it to give the example its error thumbnail, also when the
+page comes from the cache.
+"""
+
 _ANSI_ESCAPE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 """ANSI control sequences (colors, cursor moves) in terminal-oriented output."""
 
@@ -629,6 +636,7 @@ def render_notebook(
     thumbnail: tuple[Path, Path] | None = None
     plotly_js: str | None = None
     scene_viewer: str | None = None
+    failed = False
     cells = source_notebook.cells
     # Index of a Markdown cell already written under the code cell it annotates.
     moved = 0
@@ -774,6 +782,7 @@ def render_notebook(
                 continue
 
             if output_type == "error":
+                failed = True
                 pending_text.append("\n".join(output.get("traceback", [])))
         _flush_text_outputs(cell_parts, pending_text)
 
@@ -804,6 +813,8 @@ def render_notebook(
     buttons.append(f"[Download .py]({base_name}.py){{ .md-button }}")
     buttons.append(f"[Download .ipynb]({base_name}.ipynb){{ .md-button }}")
     parts.append(" ".join(buttons) + "\n")
+    if failed:
+        parts.append(ERROR_MARK + "\n")
 
     markdown_path = out_dir / f"{base_name}.md"
     markdown_path.write_text("\n".join(parts), encoding="utf-8")
