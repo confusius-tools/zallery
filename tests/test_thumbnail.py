@@ -7,6 +7,7 @@ from pathlib import Path
 
 import matplotlib.colors as mcolors
 import matplotlib.image as mimg
+import numpy as np
 import pytest
 
 from zallery.thumbnail import find_browser, screenshot_html
@@ -125,6 +126,35 @@ def test_screenshot_html_takes_the_page_color_of_the_site_styles(
 
     assert _corner(light) == pytest.approx((1.0, 0.0, 0.0), abs=0.01)
     assert _corner(dark) == pytest.approx((0.0, 0.0, 1.0), abs=0.01)
+
+
+@pytest.mark.slow
+@pytest.mark.skipif(find_browser() is None, reason="needs a Chromium-family browser")
+def test_screenshot_html_derives_the_light_text_colors_from_the_site_text_color(
+    tmp_path: Path,
+) -> None:
+    """A site text color set on the scheme attribute reaches Zensical's lighter
+    text colors, unless the site sets those too."""
+    light, dark = tmp_path / "light.png", tmp_path / "dark.png"
+    html = '<div class="light"></div><div class="lighter"></div>'
+    css = (
+        '[data-md-color-scheme="default"] { --md-default-fg-color: #ff0000; }'
+        '[data-md-color-scheme="slate"] { --md-default-fg-color: #0000ff; }'
+        "[data-md-color-scheme] { --md-default-fg-color--lighter: #00ff00; }"
+        ".light { background: var(--md-default-fg-color--light); height: 60px; }"
+        ".lighter { background: var(--md-default-fg-color--lighter); height: 60px; }"
+    )
+
+    browser = find_browser()
+    assert browser is not None
+    assert screenshot_html(html, html, light, dark, browser=browser, css=css)
+
+    # The site text color at 54 %, over the page background.
+    for png, color in ((light, (1.0, 0.0, 0.0)), (dark, (0.0, 0.0, 1.0))):
+        pixels = mimg.imread(png)[..., :3]
+        expected = 0.54 * np.array(color) + 0.46 * np.array(_corner(png))
+        assert (np.abs(pixels - expected) < 0.02).all(axis=-1).any()
+        assert (pixels == [0.0, 1.0, 0.0]).all(axis=-1).any()
 
 
 @pytest.mark.slow

@@ -135,13 +135,18 @@ def _page(html: str, css: str, *, scheme: str) -> str:
 :root {{
   --md-default-bg-color: {background};
   --md-default-fg-color: {color};
-  --md-default-fg-color--light: color-mix(in srgb, {color} 54%, transparent);
-  --md-default-fg-color--lighter: color-mix(in srgb, {color} 32%, transparent);
-  --md-default-fg-color--lightest: color-mix(in srgb, {color} 7%, transparent);
   --md-code-font-family: ui-monospace, monospace;
 }}
 html {{ font-size: 125%; }}
 body {{
+  /* On the body, which has the scheme attribute a site sets its colors on: a
+     var() in a variable takes the value of the element it is declared on. */
+  --md-default-fg-color--light:
+    color-mix(in srgb, var(--md-default-fg-color) 54%, transparent);
+  --md-default-fg-color--lighter:
+    color-mix(in srgb, var(--md-default-fg-color) 32%, transparent);
+  --md-default-fg-color--lightest:
+    color-mix(in srgb, var(--md-default-fg-color) 7%, transparent);
   margin: 0;
   padding: 0.7rem;
   background: var(--md-default-bg-color);
