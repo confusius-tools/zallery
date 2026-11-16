@@ -146,20 +146,77 @@ def test_find_kernel_ports_skips_ports_in_use(monkeypatch: pytest.MonkeyPatch) -
     assert all(taken < port < 32768 for port in ports)
 
 
-def test_execute_imports_the_project_hook_into_the_kernel(tmp_path: Path) -> None:
-    """`hook_module` is resolved on `hook_root` inside the kernel and really runs."""
-    marker = tmp_path / "hook_calls.txt"
-    (tmp_path / "myhooks.py").write_text(
-        "from contextlib import ExitStack\n"
+@pytest.mark.slow
+def test_execute_runs_the_project_integration_in_the_kernel(tmp_path: Path) -> None:
+    """A class named in `integrations` is imported from `root` in the kernel."""
+    marker = tmp_path / "calls.txt"
+    (tmp_path / "t8_kernel.py").write_text(
         "from pathlib import Path\n"
-        "def gallery_retheme(fig, theme):\n"
-        f"    with Path({str(marker)!r}).open('a') as f:\n"
-        "        f.write(theme + '\\n')\n"
-        "    return ExitStack()\n"
+        "from zallery.matplotlib import Matplotlib\n"
+        "class Recording(Matplotlib):\n"
+        "    def retheme(self, fig, scheme):\n"
+        f"        with Path({str(marker)!r}).open('a') as f:\n"
+        "            f.write(scheme + '\\n')\n"
+        "        return super().retheme(fig, scheme)\n"
     )
     src = tmp_path / "ex.py"
     src.write_text("# %%\nimport matplotlib.pyplot as plt\n_ = plt.plot([1, 2, 3])\n")
 
-    execute_example(src, timeout=120, hook_module="myhooks", hook_root=tmp_path)
+    execute_example(
+        src, timeout=120, integrations=["t8_kernel:Recording"], root=tmp_path
+    )
 
-    assert marker.read_text() == "dark\n"
+    assert marker.read_text() == "light\ndark\n"
+
+
+@pytest.mark.slow
+def test_execute_gives_a_new_display_its_dark_variant(tmp_path: Path) -> None:
+    """A class with `type` and `retheme` is all a display Zallery does not know needs."""
+    (tmp_path / "t8_cards.py").write_text(
+        "from contextlib import ExitStack\n"
+        "from zallery import Integration\n"
+        "class Cards(Integration):\n"
+        "    type = '__main__.Card'\n"
+        "    def retheme(self, card, scheme):\n"
+        "        if scheme == 'light':\n            return None\n"
+        "        stack = ExitStack()\n"
+        "        stack.callback(setattr, card, 'color', card.color)\n"
+        "        card.color = 'white'\n"
+        "        return stack\n"
+    )
+    src = tmp_path / "ex.py"
+    src.write_text(
+        "# %%\nclass Card:\n    color = 'black'\n"
+        "    def _repr_html_(self):\n"
+        "        return f'<p style=\"color:{self.color}\">card</p>'\n\nCard()\n"
+    )
+
+    notebook, _ = execute_example(
+        src, timeout=120, integrations=["t8_cards:Cards"], root=tmp_path
+    )
+
+    (output,) = notebook.cells[0].outputs
+    assert "color:black" in output.data["text/html"]
+    assert "color:white" in output.metadata["text/html"]["dark"]
+
+
+@pytest.mark.slow
+def test_execute_gives_a_plotly_figure_its_dark_figure_however_it_is_shown(
+    tmp_path: Path,
+) -> None:
+    src = tmp_path / "ex.py"
+    src.write_text(
+        "# %%\nimport plotly.graph_objects as go\n\n"
+        "fig = go.Figure(go.Bar(y=[3, 4]))\nfig.show()\nfig\n"
+    )
+
+    notebook, _ = execute_example(src, timeout=120)
+
+    mime = "application/vnd.plotly.v1+json"
+    outputs = [o for o in notebook.cells[0].outputs if mime in o.get("data", {})]
+    assert len(outputs) == 2
+    for output in outputs:
+        light = output.data[mime]["layout"]["template"]["layout"]
+        dark = output.metadata[mime]["dark"]["layout"]["template"]["layout"]
+        assert light["paper_bgcolor"] == dark["paper_bgcolor"] == "rgba(0,0,0,0)"
+        assert dark["font"]["color"] != light["font"]["color"]

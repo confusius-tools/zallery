@@ -129,9 +129,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             binder_ref=os.environ.get(BINDER_REF_ENV, "main"),
             only=[] if args.no_run else (args.examples or None),
             use_cache=not args.no_cache,
-            hook_module=config.hook,
-            hook_root=config.root,
-            palettes=config.matplotlib_palettes,
+            integrations=config.integrations,
             html_thumbnail=html_thumbnail,
         )
     except ValueError as exc:

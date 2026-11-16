@@ -18,7 +18,8 @@ from rich.progress import (
 )
 
 from zallery import cache, discover, execute, index, render
-from zallery._types import ExampleSpec, HtmlThumbnail, Palettes, RenderedExample
+from zallery._types import ExampleSpec, HtmlThumbnail, RenderedExample
+from zallery.integration import STOCK, Integration, load, name
 
 
 def _python_version() -> str:
@@ -142,7 +143,7 @@ def _make_progress(interactive: bool) -> Progress:
 def _advance_on_cell(progress: Progress, task_id: TaskID):
     """Return an `on_cell_executed` hook that advances `task_id` by one.
 
-    The injected theme-setup cell (always at `cell_index == 0`) is skipped so the
+    The injected setup cell (always at `cell_index == 0`) is skipped so the
     bar's totals reflect only the cells the user wrote.
     """
 
@@ -165,9 +166,8 @@ def _build_one(
     binder_url: str | None = None,
     run: bool = True,
     use_cache: bool = True,
-    hook_module: str | None = None,
-    hook_root: Path | None = None,
-    palettes: Palettes | None = None,
+    integrations: Sequence[Integration] = (),
+    root: Path | None = None,
     html_thumbnail: HtmlThumbnail | None = None,
 ) -> RenderedExample:
     """Build one example and return its rendered metadata.
@@ -197,14 +197,12 @@ def _build_one(
         `True`. When `False`, the example is executed even if a cached result
         exists, and the fresh result replaces it. Examples that are not run are
         always restored from cache if present.
-    hook_module : str, optional
-        Dotted name of the project's theme hook module, passed to
+    integrations : Sequence[Integration], default: ()
+        The integrations in effect. Their class names are passed to
         `zallery.execute.execute_example`.
-    hook_root : pathlib.Path, optional
-        Directory the kernel needs on `sys.path` to import `hook_module`.
-    palettes : Palettes, optional
-        The light and the dark matplotlib color cycle, passed to
-        `zallery.execute.execute_example`.
+    root : pathlib.Path, optional
+        Directory the kernel needs on `sys.path` to import the classes of the
+        project.
     html_thumbnail : HtmlThumbnail, optional
         Writes the thumbnails of an HTML output, passed to
         `zallery.render.render_notebook`.
@@ -282,9 +280,8 @@ def _build_one(
     executed_notebook, seconds = execute.execute_example(
         spec.source,
         on_cell_executed=_advance_on_cell(progress, task),
-        hook_module=hook_module,
-        hook_root=hook_root,
-        palettes=palettes,
+        integrations=[name(type(integration)) for integration in integrations],
+        root=root,
     )
 
     if not interactive:
@@ -346,9 +343,7 @@ def build_gallery(
     binder_ref: str = "main",
     only: Sequence[Path] | None = None,
     use_cache: bool = True,
-    hook_module: str | None = None,
-    hook_root: Path | None = None,
-    palettes: Palettes | None = None,
+    integrations: Sequence[Integration] | None = None,
     html_thumbnail: HtmlThumbnail | None = None,
 ) -> None:
     """Run the full pipeline and write the gallery to disk.
@@ -365,7 +360,8 @@ def build_gallery(
         String identifying the execution/render inputs, used in cache keys.
     repo_root : pathlib.Path, optional
         Repository root, needed to compute Binder URLs. If not provided, no
-        Binder badges are rendered.
+        Binder badges are rendered. It is also put on each kernel's `sys.path`,
+        so that the integration classes of the project are importable.
     binder_repo : str, optional
         `owner/repo` slug used for Binder URLs. If not provided, no Binder
         badges are rendered.
@@ -381,18 +377,10 @@ def build_gallery(
         Whether examples selected for execution may be restored from cache
         instead. When `False`, they are executed even if cached and the cache
         entry is replaced; examples not selected still come from cache.
-    hook_module : str, optional
-        Dotted name of a module defining `gallery_retheme(fig, theme)`, the
-        project's adjustments to the light/dark swap (see
-        `zallery.theme.setup_kernel`). If not provided, only the built-in swap
-        runs.
-    hook_root : pathlib.Path, optional
-        Directory put on each kernel's `sys.path` so `hook_module` is importable,
-        typically the project root.
-    palettes : Palettes, optional
-        The light and the dark matplotlib color cycle (see
-        `zallery.theme.setup_kernel`). If not provided, matplotlib's default
-        cycle is used on both pages.
+    integrations : Sequence[Integration], optional
+        The integrations in effect (see `zallery.integration`): what each display
+        library needs, and how its outputs change with the color scheme. If not
+        provided, an instance of each class Zallery ships.
     html_thumbnail : HtmlThumbnail, optional
         Writes the thumbnails of an HTML output (see
         `zallery.thumbnail.screenshot_html`). If not provided, only an image
@@ -403,6 +391,8 @@ def build_gallery(
     ValueError
         If a path in `only` does not match any discovered example.
     """
+    if integrations is None:
+        integrations = [cls() for cls in load(STOCK)]
     specs = discover.discover(examples_root)
     run_paths = {path.resolve() for path in only} if only is not None else None
     if run_paths is not None:
@@ -431,9 +421,8 @@ def build_gallery(
                     spec,
                     run=run_paths is None or spec.source.resolve() in run_paths,
                     use_cache=use_cache,
-                    hook_module=hook_module,
-                    hook_root=hook_root,
-                    palettes=palettes,
+                    integrations=integrations,
+                    root=repo_root,
                     html_thumbnail=html_thumbnail,
                     built_dir=built_dir,
                     cache_root=cache_root,

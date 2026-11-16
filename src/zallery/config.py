@@ -3,7 +3,8 @@
 The table is looked up from the working directory upwards, so `zallery` can run
 from anywhere inside the project. Relative paths in it are resolved against the
 directory holding that `pyproject.toml`, which is also the project root the kernel
-gets on its `sys.path` so the theme hook module imports.
+and the builder get on their `sys.path` so the integration classes of the project
+import.
 
 Keys (all optional):
 
@@ -11,36 +12,40 @@ Keys (all optional):
 - `built`: where rendered pages go, default `<examples>/_built`.
 - `cache`: execution/render cache directory, default `.gallery-cache`.
 - `binder_repo`: `owner/repo` slug for the Binder launch badges; no badges if unset.
-- `hook`: dotted name of the module defining `gallery_retheme(fig, theme)`.
+- `integrations`: integration classes of the project, as `"module:Class"`
+  names. A class that subclasses one Zallery ships takes its place; any other is
+  added (see `zallery.integration`).
 - `fingerprint`: files whose content invalidates the cache when it changes,
-  default `["uv.lock"]`. The `zallery` sources, the hook module and the table
-  itself are always part of the fingerprint.
+  default `["uv.lock"]`. The `zallery` sources, the modules of the integration
+  classes of the project and the table itself are always part of the fingerprint.
 - `html_thumbnails`: whether a cell tagged `thumbnail` may give an HTML output as
   the thumbnail, pictured by a headless browser; default `false`.
 - `html_thumbnail_css`: stylesheets of the site applied to that picture.
-- `light` and `dark`: tables of presets for each color scheme. Their only key so
-  far is `matplotlib.palette`, the default color cycle: the name of a listed
-  matplotlib colormap (`"Set2"`) or a list of colors.
 """
 
 from __future__ import annotations
 
+import inspect
 import json
+import sys
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 
 import zallery
-from zallery._types import Palettes
+from zallery.integration import STOCK, Integration, load, name, resolve
 
 _TABLE = "zallery"
 """Name of the table under `[tool]`."""
 
 _KNOWN_KEYS = frozenset(
-    {"examples", "built", "cache", "binder_repo", "hook", "fingerprint"}
-    | {"light", "dark", "html_thumbnails", "html_thumbnail_css"}
+    {"examples", "built", "cache", "binder_repo", "integrations", "fingerprint"}
+    | {"html_thumbnails", "html_thumbnail_css"}
 )
 """Keys the table may contain; anything else is a typo and rejected."""
+
+_REMOVED_KEYS = frozenset({"hook", "light", "dark"})
+"""Keys of earlier versions, which integration classes replace."""
 
 
 class ConfigError(ValueError):
@@ -63,14 +68,12 @@ class Config:
         Execution/render cache directory.
     binder_repo : str, optional
         `owner/repo` slug for Binder launch badges. If not provided, no badges.
-    hook : str, optional
-        Dotted name of the project's theme hook module. If not provided, only the
-        built-in swap runs.
+    integrations : tuple[Integration, ...]
+        The integrations in effect, in order: an instance of each class Zallery
+        ships, or of the class of the project that takes its place, then of the
+        other classes the project names.
     fingerprint_files : tuple[pathlib.Path, ...]
         Files whose content is part of the cache fingerprint.
-    matplotlib_palettes : Palettes, optional
-        The light and the dark matplotlib color cycle. If not provided,
-        matplotlib's default cycle is used on both pages.
     html_thumbnails : bool, default: False
         Whether an HTML output may be pictured as an example's thumbnail.
     html_thumbnail_css : tuple[pathlib.Path, ...], default: ()
@@ -82,27 +85,10 @@ class Config:
     built: Path
     cache: Path
     binder_repo: str | None
-    hook: str | None
+    integrations: tuple[Integration, ...]
     fingerprint_files: tuple[Path, ...]
-    matplotlib_palettes: Palettes | None = None
     html_thumbnails: bool = False
     html_thumbnail_css: tuple[Path, ...] = ()
-
-    @property
-    def hook_file(self) -> Path | None:
-        """Source file of the hook module under `root`, if the module is configured.
-
-        Returns
-        -------
-        pathlib.Path or None
-            `<root>/a/b.py` or `<root>/a/b/__init__.py` for `hook = "a.b"`, whichever
-            exists, else the module path with `.py`; `None` without a hook.
-        """
-        if self.hook is None:
-            return None
-        base = self.root.joinpath(*self.hook.split("."))
-        package_init = base / "__init__.py"
-        return package_init if package_init.is_file() else base.with_suffix(".py")
 
 
 def find_pyproject(start: Path) -> Path | None:
@@ -128,130 +114,42 @@ def find_pyproject(start: Path) -> Path | None:
     return None
 
 
-def _only_key(table: object, key: str, where: str) -> object:
-    """Return the value of `key` in a table that may hold no other key.
+def _integrations(listed: object, root: Path) -> tuple[Integration, ...]:
+    """Return an instance of each integration class in effect.
 
     Parameters
     ----------
-    table : object
-        The parsed TOML value expected to be a table.
-    key : str
-        The one key the table may contain.
-    where : str
-        Name of the table, for the error message.
+    listed : object
+        The parsed TOML value of `integrations`: a list of `"module:Class"` names.
+    root : pathlib.Path
+        The project root, put on `sys.path` so that the classes import.
 
     Returns
     -------
-    object
-        The value of `key`, or `None` if the table does not have it.
+    tuple[Integration, ...]
+        The stock classes, each replaced by the listed class that subclasses it,
+        then the other listed classes (see `zallery.integration.resolve`), each
+        instantiated.
 
     Raises
     ------
     ConfigError
-        If `table` is not a table or has any other key.
+        If `listed` is not a list of strings, a class does not load, two listed
+        classes subclass the same stock class, or a class refuses its own
+        attributes when instantiated.
     """
-    if not isinstance(table, dict):
-        raise ConfigError(f"{where} must be a table.")
-    unknown = sorted(set(table) - {key})
-    if unknown:
+    if not isinstance(listed, list) or not all(isinstance(e, str) for e in listed):
         raise ConfigError(
-            f"Unknown keys in {where}: {', '.join(unknown)}. Known keys: {key}."
+            'integrations in [tool.zallery] must be a list of "module:Class" strings.'
         )
-    return table.get(key)
-
-
-def _resolve_palette(value: object, where: str) -> tuple[str, ...]:
-    """Return a palette given by name or as a list of colors, as hex colors.
-
-    Parameters
-    ----------
-    value : object
-        The parsed TOML value: the name of a listed matplotlib colormap, or a
-        non-empty list of matplotlib colors.
-    where : str
-        Name of the key, for the error message.
-
-    Returns
-    -------
-    tuple[str, ...]
-        The colors as `#rrggbb` strings.
-
-    Raises
-    ------
-    ConfigError
-        If `value` is neither, or holds something matplotlib cannot read as a color.
-    """
-    # Imported here so that a project without palettes does not pay for matplotlib.
-    import matplotlib as mpl
-    import matplotlib.colors as mcolors
-
-    if isinstance(value, str):
-        colors = getattr(mpl.colormaps.get(value), "colors", None)
-        if colors is None:
-            raise ConfigError(
-                f"{where} = {value!r} is not a listed matplotlib colormap such as "
-                '"Set2". Give such a name or a list of colors.'
-            )
-    elif isinstance(value, list) and value:
-        colors = value
-    else:
-        raise ConfigError(
-            f"{where} must be the name of a listed matplotlib colormap or a "
-            "non-empty list of colors."
-        )
+    if listed and str(root) not in sys.path:
+        sys.path.insert(0, str(root))
     try:
-        return tuple(mcolors.to_hex(color) for color in colors)
-    except (ValueError, TypeError) as exc:
-        raise ConfigError(f"{where}: {exc}") from None
-
-
-def _matplotlib_palettes(table: dict[str, object]) -> Palettes | None:
-    """Return the palettes set by the `light` and `dark` tables, if any.
-
-    Parameters
-    ----------
-    table : dict[str, object]
-        The `[tool.zallery]` table.
-
-    Returns
-    -------
-    Palettes or None
-        The light and the dark palette. A missing light palette is matplotlib's
-        default cycle; a missing dark palette is the light one. `None` if neither
-        table sets a palette.
-
-    Raises
-    ------
-    ConfigError
-        If a table is malformed, or the dark palette is shorter than the light one.
-    """
-    given: dict[str, tuple[str, ...]] = {}
-    for scheme in ("light", "dark"):
-        where = f"[tool.zallery.{scheme}]"
-        package = _only_key(table.get(scheme, {}), "matplotlib", where)
-        if package is None:
-            continue
-        palette = _only_key(package, "palette", f"{where} matplotlib")
-        if palette is not None:
-            given[scheme] = _resolve_palette(palette, f"{where} matplotlib.palette")
-    if not given:
-        return None
-
-    import matplotlib as mpl
-
-    default = _resolve_palette(
-        mpl.rcParamsDefault["axes.prop_cycle"].by_key()["color"], "default cycle"
-    )
-    light = given.get("light", default)
-    dark = given.get("dark", light)
-    if len(dark) < len(light):
-        raise ConfigError(
-            f"The dark matplotlib palette has {len(dark)} colors, fewer than the "
-            f"light one ({len(light)}): every light color needs a dark counterpart. "
-            "Without [tool.zallery.light] matplotlib.palette, the light palette is "
-            "matplotlib's default cycle."
-        )
-    return light, dark
+        classes = resolve(load(listed), load(STOCK))
+        return tuple(cls() for cls in classes)
+    except Exception as exc:
+        # Whatever a class of the project raises is the project's to fix.
+        raise ConfigError(f"integrations in [tool.zallery]: {exc}") from exc
 
 
 def load_config(start: Path) -> Config:
@@ -272,7 +170,7 @@ def load_config(start: Path) -> Config:
     ------
     ConfigError
         If no `pyproject.toml` with a `[tool.zallery]` table is found, or the table
-        has unknown keys or a malformed value.
+        has unknown keys, keys of an earlier version, or a malformed value.
     """
     pyproject = find_pyproject(start)
     if pyproject is None:
@@ -282,6 +180,12 @@ def load_config(start: Path) -> Config:
         )
     with pyproject.open("rb") as handle:
         table = tomllib.load(handle)["tool"][_TABLE]
+    if _REMOVED_KEYS & set(table):
+        raise ConfigError(
+            "hook, light and dark are no longer keys of [tool.zallery]: subclass an "
+            "integration class and name it in integrations (see Integrations in "
+            "the README)."
+        )
     unknown = sorted(set(table) - _KNOWN_KEYS)
     if unknown:
         raise ConfigError(
@@ -309,11 +213,10 @@ def load_config(start: Path) -> Config:
         built=root / table["built"] if "built" in table else examples / "_built",
         cache=root / table.get("cache", ".gallery-cache"),
         binder_repo=table.get("binder_repo"),
-        hook=table.get("hook"),
+        integrations=_integrations(table.get("integrations", []), root),
         fingerprint_files=tuple(
             root / p for p in table.get("fingerprint", ["uv.lock"])
         ),
-        matplotlib_palettes=_matplotlib_palettes(table),
         html_thumbnails=html_thumbnails,
         html_thumbnail_css=html_thumbnail_css,
     )
@@ -323,8 +226,8 @@ def deps_fingerprint(config: Config) -> str:
     """Return a string identifying everything that shapes an example's render.
 
     Any change to it makes every cached example miss: the configured fingerprint
-    files (the lockfile by default), the `zallery` sources, the hook module, and
-    the configuration values themselves. The Binder ref is deliberately not part of
+    files (the lockfile by default), the `zallery` sources, the modules of the
+    integration classes of the project, and the configuration values themselves. The Binder ref is deliberately not part of
     it, so renders are reused across branches.
 
     Parameters
@@ -343,8 +246,7 @@ def deps_fingerprint(config: Config) -> str:
                 "examples": str(config.examples.relative_to(config.root)),
                 "built": str(config.built.relative_to(config.root)),
                 "binder_repo": config.binder_repo,
-                "hook": config.hook,
-                "matplotlib_palettes": config.matplotlib_palettes,
+                "integrations": [name(type(i)) for i in config.integrations],
                 "html_thumbnails": config.html_thumbnails,
             },
             sort_keys=True,
@@ -358,8 +260,13 @@ def deps_fingerprint(config: Config) -> str:
     for path in sorted(Path(zallery.__file__).resolve().parent.glob("*.py")):
         parts.append(f"\n# zallery/{path.name}\n")
         parts.append(path.read_text(encoding="utf-8"))
-    hook_file = config.hook_file
-    if hook_file is not None and hook_file.is_file():
-        parts.append(f"\n# {hook_file.relative_to(config.root)}\n")
-        parts.append(hook_file.read_text(encoding="utf-8"))
+    for integration in config.integrations:
+        cls = type(integration)
+        if cls.__module__.partition(".")[0] == "zallery":
+            # Among the sources above.
+            continue
+        source = inspect.getsourcefile(cls)
+        if source is not None and Path(source).is_file():
+            parts.append(f"\n# {name(cls)}\n")
+            parts.append(Path(source).read_text(encoding="utf-8"))
     return "".join(parts)

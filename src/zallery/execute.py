@@ -7,7 +7,7 @@ import socket
 import sys
 import tempfile
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from pathlib import Path
 
 import jupytext
@@ -17,7 +17,7 @@ from ipykernel.kernelspec import get_kernel_dict
 from jupyter_client.manager import KernelManager
 from nbclient import NotebookClient
 
-from zallery._types import Palettes
+from zallery.integration import STOCK
 
 OnCellExecuted = Callable[..., None]
 """Hook invoked after each cell finishes.
@@ -28,24 +28,18 @@ injected setup cell is `cell_index == 0`.
 """
 
 
-def _setup_source(
-    hook_module: str | None, hook_root: Path | None, palettes: Palettes | None
-) -> str:
+def _setup_source(integrations: Sequence[str], root: Path | None) -> str:
     """Return the code of the setup cell run before the example.
 
     Parameters
     ----------
-    hook_module : str, optional
-        Dotted name of the project hook module passed to
-        `zallery.theme.setup_kernel`. If not provided, only the built-in swap runs.
-    hook_root : pathlib.Path, optional
-        Directory inserted at the front of the kernel's `sys.path` so that
-        `hook_module` is importable. If not provided, the kernel's default path is
-        used as is.
-    palettes : Palettes, optional
-        The light and the dark matplotlib color cycle, passed to
-        `zallery.theme.setup_kernel`. If not provided, matplotlib's default
-        cycle is used for both.
+    integrations : Sequence[str]
+        The integration classes in effect, as `"module:Class"`, passed to
+        `zallery.integration.setup_kernel`.
+    root : pathlib.Path, optional
+        Directory inserted at the front of the kernel's `sys.path` so that the
+        classes of the project are importable. If not provided, the kernel's
+        default path is used as is.
 
     Returns
     -------
@@ -53,11 +47,11 @@ def _setup_source(
         Python source for the setup cell.
     """
     lines = []
-    if hook_root is not None:
-        lines += ["import sys", f"sys.path.insert(0, {str(hook_root)!r})"]
+    if root is not None:
+        lines += ["import sys", f"sys.path.insert(0, {str(root)!r})"]
     lines += [
-        "from zallery.theme import setup_kernel",
-        f"setup_kernel({hook_module!r}, {palettes!r})",
+        "from zallery.integration import setup_kernel",
+        f"setup_kernel({list(integrations)!r})",
     ]
     return "\n".join(lines)
 
@@ -165,9 +159,8 @@ def execute_example(
     *,
     timeout: int = 600,
     on_cell_executed: OnCellExecuted | None = None,
-    hook_module: str | None = None,
-    hook_root: Path | None = None,
-    palettes: Palettes | None = None,
+    integrations: Sequence[str] | None = None,
+    root: Path | None = None,
 ) -> tuple[nbformat.NotebookNode, float]:
     """Execute one percent-format `.py` example end-to-end.
 
@@ -179,22 +172,20 @@ def execute_example(
         Per-cell timeout in seconds.
     on_cell_executed : OnCellExecuted, optional
         Hook called after each cell, including the setup cell at index 0.
-    hook_module : str, optional
-        Dotted name of the module defining the project's `gallery_retheme` hook
-        (see `zallery.theme.setup_kernel`). If not provided, only the built-in
-        theme swap runs.
-    hook_root : pathlib.Path, optional
-        Directory put on the kernel's `sys.path` so `hook_module` is importable.
-    palettes : Palettes, optional
-        The light and the dark matplotlib color cycle (see
-        `zallery.theme.setup_kernel`). If not provided, matplotlib's default
-        cycle is used for both.
+    integrations : Sequence[str], optional
+        The integration classes in effect, as `"module:Class"` (see
+        `zallery.integration.setup_kernel`). If not provided, the classes Zallery
+        ships.
+    root : pathlib.Path, optional
+        Directory put on the kernel's `sys.path` so that the classes of the
+        project are importable.
 
     Returns
     -------
     notebook : nbformat.NotebookNode
-        The executed notebook, with the same cells as `source`. Figure outputs
-        carry their dark rendering under `metadata["image/png"]["dark"]`.
+        The executed notebook, with the same cells as `source`. An output an
+        integration rethemed carries its dark variant in its metadata, under
+        `metadata[<mime type>]["dark"]`.
     seconds : float
         Wall-clock execution time.
 
@@ -205,7 +196,7 @@ def execute_example(
     """
     notebook = read_example(source)
     setup_cell = nbformat.v4.new_code_cell(
-        _setup_source(hook_module, hook_root, palettes),
+        _setup_source(STOCK if integrations is None else integrations, root),
         metadata={"tags": ["_gallery_internal"]},
     )
     notebook.cells.insert(0, setup_cell)

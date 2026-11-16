@@ -1,9 +1,10 @@
 """Build a light-and-dark example gallery for Zensical docs from jupytext scripts.
 
 Examples are percent-format `.py` files executed once in an ipykernel; each
-displayed matplotlib figure is rendered for both themes from that single run
-(see `zallery.theme`). [`build_gallery`][zallery.build_gallery] runs the whole
-pipeline: discover, cache, execute, render, index.
+output is rendered for both color schemes from that single run. What changes
+between the two is said by integration classes, one for each display library
+(see [`Integration`][zallery.Integration]). [`build_gallery`][zallery.build_gallery]
+runs the whole pipeline: discover, cache, execute, render, index.
 """
 
 from zallery.integration import Integration

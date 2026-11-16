@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from zallery.config import ConfigError, deps_fingerprint, load_config
+from zallery.config import Config, ConfigError, deps_fingerprint, load_config
 
 
 def _write_pyproject(root: Path, table: str) -> None:
@@ -18,7 +18,7 @@ def test_load_config_resolves_paths_under_the_project_root(tmp_path: Path) -> No
     _write_pyproject(
         tmp_path,
         'examples = "site/examples"\ncache = "build/.cache"\n'
-        'binder_repo = "me/repo"\nhook = "conf.hooks"\nfingerprint = ["lock.txt"]\n',
+        'binder_repo = "me/repo"\nfingerprint = ["lock.txt"]\n',
     )
 
     config = load_config(tmp_path)
@@ -28,8 +28,6 @@ def test_load_config_resolves_paths_under_the_project_root(tmp_path: Path) -> No
     assert config.built == tmp_path.resolve() / "site" / "examples" / "_built"
     assert config.cache == tmp_path.resolve() / "build" / ".cache"
     assert config.binder_repo == "me/repo"
-    assert config.hook == "conf.hooks"
-    assert config.hook_file == tmp_path.resolve() / "conf" / "hooks.py"
     assert config.fingerprint_files == (tmp_path.resolve() / "lock.txt",)
 
 
@@ -42,10 +40,7 @@ def test_load_config_defaults(tmp_path: Path) -> None:
     assert config.built == config.examples / "_built"
     assert config.cache == tmp_path.resolve() / ".gallery-cache"
     assert config.binder_repo is None
-    assert config.hook is None
-    assert config.hook_file is None
     assert config.fingerprint_files == (tmp_path.resolve() / "uv.lock",)
-    assert config.matplotlib_palettes is None
     assert config.html_thumbnails is False
     assert config.html_thumbnail_css == ()
 
@@ -77,93 +72,117 @@ def test_load_config_rejects_unknown_keys(tmp_path: Path) -> None:
         load_config(tmp_path)
 
 
-def test_deps_fingerprint_tracks_lockfile_hook_and_config(tmp_path: Path) -> None:
-    _write_pyproject(tmp_path, 'hook = "hooks"\n')
+def test_deps_fingerprint_tracks_lockfile_and_config(tmp_path: Path) -> None:
+    _write_pyproject(tmp_path, "")
     (tmp_path / "uv.lock").write_text("v1\n")
-    (tmp_path / "hooks.py").write_text("def gallery_retheme(fig, theme): pass\n")
     baseline = deps_fingerprint(load_config(tmp_path))
 
     (tmp_path / "uv.lock").write_text("v2\n")
     after_lock = deps_fingerprint(load_config(tmp_path))
-    (tmp_path / "hooks.py").write_text("def gallery_retheme(fig, theme): ...\n")
-    after_hook = deps_fingerprint(load_config(tmp_path))
-    _write_pyproject(tmp_path, 'hook = "hooks"\nbinder_repo = "me/repo"\n')
+    _write_pyproject(tmp_path, 'binder_repo = "me/repo"\n')
     after_config = deps_fingerprint(load_config(tmp_path))
 
-    assert len({baseline, after_lock, after_hook, after_config}) == 4
+    assert len({baseline, after_lock, after_config}) == 3
     assert deps_fingerprint(load_config(tmp_path)) == after_config
 
 
-def test_load_config_resolves_matplotlib_palettes_to_hex_colors(tmp_path: Path) -> None:
-    """A palette is a list of colors or the name of a listed matplotlib colormap."""
-    _write_pyproject(
-        tmp_path,
-        '[tool.zallery.light]\nmatplotlib.palette = ["red", "#0000ff"]\n'
-        '[tool.zallery.dark]\nmatplotlib.palette = "Set2"\n',
+def _classes(config: Config) -> list[str]:
+    return [type(integration).__name__ for integration in config.integrations]
+
+
+def test_load_config_has_the_stock_integrations_by_default(tmp_path: Path) -> None:
+    _write_pyproject(tmp_path, "")
+
+    assert _classes(load_config(tmp_path)) == [
+        "Matplotlib",
+        "Plotly",
+        "PyVista",
+        "Xarray",
+    ]
+
+
+def test_a_listed_subclass_replaces_its_stock_class_and_others_are_added(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "t8_conf.py").write_text(
+        "from zallery import Integration\n"
+        "from zallery.matplotlib import Matplotlib\n"
+        "class Figures(Matplotlib):\n    cmaps = {}\n"
+        "class Cards(Integration):\n    type = 'cards.Card'\n"
     )
+    _write_pyproject(tmp_path, 'integrations = ["t8_conf:Cards", "t8_conf:Figures"]\n')
 
-    palettes = load_config(tmp_path).matplotlib_palettes
-
-    assert palettes == (
-        ("#ff0000", "#0000ff"),
-        (
-            "#66c2a5",
-            "#fc8d62",
-            "#8da0cb",
-            "#e78ac3",
-            "#a6d854",
-            "#ffd92f",
-            "#e5c494",
-            "#b3b3b3",
-        ),
-    )
+    assert _classes(load_config(tmp_path)) == [
+        "Figures",
+        "Plotly",
+        "PyVista",
+        "Xarray",
+        "Cards",
+    ]
 
 
-def test_load_config_fills_in_the_palette_not_given(tmp_path: Path) -> None:
-    """Light defaults to matplotlib's own cycle, dark to the light palette."""
-    _write_pyproject(tmp_path, '[tool.zallery.dark]\nmatplotlib.palette = "tab20"\n')
-    light, dark = load_config(tmp_path).matplotlib_palettes or ((), ())
-    assert light[:2] == ("#1f77b4", "#ff7f0e")
-    assert len(light) == 10
-    assert len(dark) == 20
-
-    _write_pyproject(tmp_path, '[tool.zallery.light]\nmatplotlib.palette = "Dark2"\n')
-    light, dark = load_config(tmp_path).matplotlib_palettes or ((), ())
-    assert light[0] == "#1b9e77"
-    assert dark == light
+_BAD_PALETTE = (
+    "from zallery.matplotlib import Matplotlib\n"
+    "class Bad(Matplotlib):\n    palette = ('Set2', 'coolwarm')\n"
+)
+_TWO_SUBCLASSES = (
+    "from zallery.matplotlib import Matplotlib\n"
+    "class One(Matplotlib):\n    pass\n"
+    "class Two(Matplotlib):\n    pass\n"
+)
 
 
 @pytest.mark.parametrize(
-    ("tables", "message"),
+    ("body", "table", "message"),
     [
-        ('[tool.zallery.light]\nmatplotlib.palette = "NoSuchMap"\n', "NoSuchMap"),
-        # A continuous colormap has no list of colors to cycle through.
-        ('[tool.zallery.light]\nmatplotlib.palette = "coolwarm"\n', "coolwarm"),
-        ('[tool.zallery.light]\nmatplotlib.palette = ["red", "nocolor"]\n', "nocolor"),
-        ("[tool.zallery.light]\nmatplotlib.palette = 3\n", "palette"),
-        ("[tool.zallery.light]\nmatplotlib.palette = []\n", "palette"),
-        ('[tool.zallery.light]\nseaborn.palette = "deep"\n', "seaborn"),
-        ('[tool.zallery.dark]\nmatplotlib.cmap = "viridis"\n', "cmap"),
-        # Eight colors cannot pair with the ten of matplotlib's default cycle.
-        ('[tool.zallery.dark]\nmatplotlib.palette = "Set2"\n', "fewer"),
+        ("", 'integrations = ["t8_absent:Mine"]\n', "t8_absent:Mine"),
+        ("", 'integrations = "t8_one:Mine"\n', "list"),
+        ("", "integrations = [3]\n", "list"),
+        (_BAD_PALETTE, 'integrations = ["t8_palette:Bad"]\n', r"Bad\.palette"),
+        (
+            _TWO_SUBCLASSES,
+            'integrations = ["t8_two:One", "t8_two:Two"]\n',
+            "both subclass",
+        ),
     ],
 )
-def test_load_config_rejects_bad_palettes(
-    tmp_path: Path, tables: str, message: str
+def test_load_config_rejects_bad_integrations(
+    tmp_path: Path, body: str, table: str, message: str
 ) -> None:
-    _write_pyproject(tmp_path, tables)
+    (tmp_path / "t8_palette.py").write_text(body)
+    (tmp_path / "t8_two.py").write_text(body)
+    _write_pyproject(tmp_path, table)
 
     with pytest.raises(ConfigError, match=message):
         load_config(tmp_path)
 
 
-def test_deps_fingerprint_tracks_matplotlib_palettes(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    "table", ['hook = "x"\n', "[tool.zallery.light]\n", "[tool.zallery.dark]\n"]
+)
+def test_load_config_points_removed_keys_to_integrations(
+    tmp_path: Path, table: str
+) -> None:
+    _write_pyproject(tmp_path, table)
+
+    with pytest.raises(ConfigError, match="integrations"):
+        load_config(tmp_path)
+
+
+def test_deps_fingerprint_tracks_the_integrations(tmp_path: Path) -> None:
+    source = (
+        "from zallery.matplotlib import Matplotlib\n"
+        "class Figures(Matplotlib):\n    cmaps = {}\n"
+    )
+    (tmp_path / "t8_print.py").write_text(source)
     _write_pyproject(tmp_path, "")
-    baseline = deps_fingerprint(load_config(tmp_path))
+    stock = deps_fingerprint(load_config(tmp_path))
+    _write_pyproject(tmp_path, 'integrations = ["t8_print:Figures"]\n')
+    listed = deps_fingerprint(load_config(tmp_path))
+    (tmp_path / "t8_print.py").write_text(source + "# changed\n")
+    edited = deps_fingerprint(load_config(tmp_path))
 
-    _write_pyproject(tmp_path, '[tool.zallery.light]\nmatplotlib.palette = "Dark2"\n')
-
-    assert deps_fingerprint(load_config(tmp_path)) != baseline
+    assert len({stock, listed, edited}) == 3
 
 
 def test_load_config_reads_the_html_thumbnail_settings(tmp_path: Path) -> None:

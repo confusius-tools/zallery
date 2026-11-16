@@ -6,18 +6,11 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-Palettes = tuple[tuple[str, ...], tuple[str, ...]]
-"""The light and the dark matplotlib color cycle, in this order, as hex colors.
-
-The dark color at a position replaces the light color at the same position.
-"""
-
-
 SCENE_MIME = "application/vnd.zallery.vtksz"
 """Mime type the kernel gives a pyvista scene exported for the browser.
 
 The payload is the base64 text of a `.vtksz` file, next to the still picture of the
-plotter in the same output (see `zallery.theme.show_pyvista_plots`).
+plotter in the same output (see `zallery.pyvista.PyVista`).
 """
 
 HtmlThumbnail = Callable[[str, Path, Path], bool]
