@@ -22,6 +22,9 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends libosmesa6 \
  && rm -rf /var/lib/apt/lists/*
 ENV VTK_DEFAULT_OPENGL_WINDOW=vtkOSOpenGLRenderWindow
+# With trame installed, PyVista would show plots through a server of its own, which
+# a browser cannot reach on Binder without a proxy: show still pictures instead.
+ENV PYVISTA_JUPYTER_BACKEND=static
 
 # Use the image's Python, which matches `.python-version`. If the two ever differ,
 # the build fails here instead of downloading another Python.
