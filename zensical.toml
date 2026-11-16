@@ -33,6 +33,7 @@ nav = [
             { "xarray objects" = "examples/_built/outputs/xarray.md" },
             { "An HTML output as the thumbnail" = "examples/_built/outputs/html_thumbnail.md" },
             { "Plotly figures" = "examples/_built/outputs/plotly.md" },
+            { "PyVista plots" = "examples/_built/outputs/pyvista.md" },
         ]},
     ]},
 ]
