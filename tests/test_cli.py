@@ -240,7 +240,11 @@ def test_cli_shows_pyvista_plots_and_animations(tmp_path: Path) -> None:
     markdown = (built / "hello.md").read_text(encoding="utf-8")
     assert '<img src="hello_cell_01_0.gif"' in markdown
     assert (built / "hello_cell_01_0.gif").read_bytes().startswith(b"GIF8")
-    assert (built / "hello_output_light" / "cell_02_0_light.png").is_file()
+    # The still picture is drawn again with the colors of pyvista's dark theme.
+    light = mimg.imread(built / "hello_output_light" / "cell_02_0_light.png")
+    dark = mimg.imread(built / "hello_output_dark" / "cell_02_0_dark.png")
+    assert tuple(light[0, 0, :3]) == (1.0, 1.0, 1.0)
+    assert tuple(dark[0, 0, :3]) == (0.0, 0.0, 0.0)
     # pyvista's hint about its interactive backends is not part of the page.
     assert "trame" not in markdown
 
@@ -264,5 +268,10 @@ def test_cli_embeds_the_interactive_scene_of_a_pyvista_plot(tmp_path: Path) -> N
     built = examples / "_built" / "io"
     markdown = (built / "hello.md").read_text(encoding="utf-8")
     assert "?fileURL=hello_cell_01_0.vtksz" in markdown
-    # A zip archive, which the viewer reads.
-    assert (built / "hello_cell_01_0.vtksz").read_bytes().startswith(b"PK")
+    assert "?fileURL=hello_cell_01_0_dark.vtksz" in markdown
+    # Zip archives, which the viewer reads; the dark one is another drawing.
+    light = (built / "hello_cell_01_0.vtksz").read_bytes()
+    dark = (built / "hello_cell_01_0_dark.vtksz").read_bytes()
+    assert light.startswith(b"PK")
+    assert dark.startswith(b"PK")
+    assert light != dark

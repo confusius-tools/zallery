@@ -16,7 +16,7 @@ import io
 import os
 import sys
 import warnings
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from contextlib import ExitStack
 from dataclasses import dataclass
 from functools import partial
@@ -356,14 +356,118 @@ PYVISTA_GALLERY_MODE = {
     "PYVISTA_OFF_SCREEN": "true",
     "PYVISTA_BUILDING_GALLERY": "true",
     "PYVISTA_JUPYTER_BACKEND": "none",
+    "PYVISTA_AUTO_CLOSE": "false",
 }
 """Environment pyvista reads when imported, set for the examples that import it.
 
 In its gallery mode, `Plotter.show()` displays nothing in the notebook: it takes a
-picture, closes the plotter, which finishes a GIF it records, and keeps it for
-`show_pyvista_plots`. Set with `os.environ.setdefault`: a project can override
-each value.
+picture and keeps the plotter, open, for `show_pyvista_plots`. Set with
+`os.environ.setdefault`: a project can override each value.
 """
+
+_PYVISTA_TEXT = (
+    "GetTextProperty",
+    "GetTitleTextProperty",
+    "GetLabelTextProperty",
+    "GetAnnotationTextProperty",
+    "GetCaptionTextProperty",
+)
+"""Methods of VTK actors giving the property of a text: its color, among others."""
+
+_PYVISTA_LINES = tuple(
+    f"Get{axis}Axes{kind}Property"
+    for axis in "XYZ"
+    for kind in ("Lines", "Gridlines", "InnerGridlines")
+)
+"""Methods of the axes drawn by `show_bounds` giving the property of their lines."""
+
+
+def _pyvista_colored(renderer: Any) -> Iterator[Any]:
+    """Yield what holds a text, line or surface color in a pyvista renderer.
+
+    Parameters
+    ----------
+    renderer : pyvista.Renderer
+        One renderer of a plotter.
+
+    Yields
+    ------
+    vtkProperty or vtkProperty2D or vtkTextProperty
+        A property of an actor of the renderer, with `GetColor` and `SetColor`.
+    """
+    props = renderer.GetViewProps()
+    for index in range(props.GetNumberOfItems()):
+        actor = props.GetItemAsObject(index)
+        if hasattr(actor, "GetProperty"):
+            yield actor.GetProperty()
+        for name in _PYVISTA_TEXT + _PYVISTA_LINES:
+            getter = getattr(actor, name, None)
+            if getter is None:
+                continue
+            try:
+                yield getter()
+            except TypeError:
+                # One property for each axis, on the axes of `show_bounds`.
+                yield from (getter(axis) for axis in range(3))
+    # The orientation axes of `add_axes` are not among the actors.
+    axes = getattr(renderer, "axes_actor", None)
+    for axis in "XYZ":
+        caption = getattr(axes, f"Get{axis}AxisCaptionActor2D", None)
+        if caption is not None:
+            yield caption().GetCaptionTextProperty()
+
+
+def _png_text(image: Any) -> str:
+    """Return a picture as the base64 text of a PNG file, as a notebook holds it.
+
+    Parameters
+    ----------
+    image : numpy.ndarray
+        The pixels, as a pyvista screenshot gives them.
+
+    Returns
+    -------
+    str
+        The PNG file, in base64.
+    """
+    # Imported here: pillow comes with pyvista, which this is for.
+    from PIL import Image
+
+    png = io.BytesIO()
+    Image.fromarray(image).save(png, format="png")
+    return base64.b64encode(png.getvalue()).decode()
+
+
+def retheme_plotter(pyvista: Any, plotter: Any) -> None:
+    """Give a pyvista plotter the colors of pyvista's dark theme.
+
+    Like the swap of matplotlib figures, it changes the colors that equal those of
+    the theme examples run under, pyvista's default one: the background, and the
+    black of texts, edges, outlines and axes, which the dark theme has white. A
+    color you set yourself to one of those is changed too; all others, and
+    colormaps, stay. Nothing is restored: the plotter is closed afterwards.
+
+    Parameters
+    ----------
+    pyvista : module
+        The `pyvista` module, which the examples import, not Zallery.
+    plotter : pyvista.Plotter
+        A plotter that is still open.
+    """
+    light, dark = pyvista.themes.DocumentTheme(), pyvista.themes.DarkTheme()
+    ink = {
+        light.font.color.float_rgb: dark.font.color.float_rgb,
+        light.edge_color.float_rgb: dark.edge_color.float_rgb,
+        light.outline_color.float_rgb: dark.outline_color.float_rgb,
+    }
+    for renderer in plotter.renderers:
+        if renderer.background_color.float_rgb == light.background.float_rgb:
+            renderer.background_color = dark.background
+        for colored in _pyvista_colored(renderer):
+            for name in ("Color", "EdgeColor"):
+                get = getattr(colored, f"Get{name}", None)
+                if get is not None and tuple(get()) in ink:
+                    getattr(colored, f"Set{name}")(*ink[tuple(get())])
 
 
 def show_pyvista_plots() -> None:
@@ -371,33 +475,50 @@ def show_pyvista_plots() -> None:
 
     A plotter that records a GIF shows the GIF, others their last picture, as
     pyvista's own sphinx-gallery scraper does. Plotters not shown yet are left for
-    a later cell.
+    a later cell; those shown are closed.
+
+    The picture is taken again with the colors of pyvista's dark theme (see
+    `retheme_plotter`), and goes in the metadata of the output like the dark
+    rendering of a matplotlib figure. A GIF has one rendering: its frames are
+    recorded already.
 
     With trame-pyvista installed, pyvista also exports the scene of each plotter
-    it shows, for a browser to draw. It goes in the output of the picture, under
-    `SCENE_MIME`.
+    it shows, for a browser to draw. The light and the dark scene go in the output
+    of the picture and in its metadata, under `SCENE_MIME`.
     """
     pyvista = sys.modules.get("pyvista")
     if pyvista is None:
         return
     from IPython.display import Image, display
-    from PIL import Image as PILImage
 
     plotters = pyvista.plotting.plotter._ALL_PLOTTERS
     for key, plotter in list(plotters.items()):
-        if not plotter._closed:
+        # `show()` takes the picture; a project may have it close the plotter too.
+        if plotter.last_image is None and not plotter._closed:
             continue
         del plotters[key]
         if plotter._gif_filename is not None:
+            # Closing ends the recording.
+            plotter.close()
             display(Image(filename=plotter._gif_filename))
         elif plotter.last_image is not None:
-            png = io.BytesIO()
-            PILImage.fromarray(plotter.last_image).save(png, format="png")
-            bundle = {"image/png": base64.b64encode(png.getvalue()).decode()}
+            data = {"image/png": _png_text(plotter.last_image)}
+            metadata: dict[str, dict[str, str]] = {}
             scene = getattr(plotter, "last_vtksz", None)
             if scene is not None:
-                bundle[SCENE_MIME] = base64.b64encode(scene).decode()
-            display(bundle, raw=True)
+                data[SCENE_MIME] = base64.b64encode(scene).decode()
+            if not plotter._closed:
+                retheme_plotter(pyvista, plotter)
+                plotter.render()
+                dark = plotter.screenshot(return_img=True)
+                metadata["image/png"] = {"dark": _png_text(dark)}
+                if scene is not None:
+                    dark_scene = plotter.trame.export_vtksz(filename=None)
+                    metadata[SCENE_MIME] = {
+                        "dark": base64.b64encode(dark_scene).decode()
+                    }
+                plotter.close()
+            display(data, metadata=metadata, raw=True)
 
 
 def setup_kernel(

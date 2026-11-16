@@ -35,6 +35,14 @@ page comes from the cache.
 _ANSI_ESCAPE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 """ANSI control sequences (colors, cursor moves) in terminal-oriented output."""
 
+_SCENE_STYLE = (
+    "<style>.gallery-scene-dark,"
+    '[data-md-color-scheme="slate"] .gallery-scene-light{display:none}'
+    '[data-md-color-scheme="slate"] .gallery-scene-dark{display:inline}</style>\n'
+)
+"""Rule showing, of the light and the dark scene of a pyvista plot, the one of the
+color scheme. It comes with the page: a site needs no style of its own for it."""
+
 _PLOTLY_MIME = "application/vnd.plotly.v1+json"
 """Mime type of a plotly figure, which plotly's default renderer in a kernel sends."""
 
@@ -207,14 +215,44 @@ def _code_fence(source: str, tags: set[str], *, annotate: bool) -> str:
     return f"{opening}\n{source.rstrip()}\n```\n"
 
 
-def _flush_tabs(parts: list[str], tabs: list[tuple[str, str]]) -> None:
-    """Append the pending tabs to `parts` as one set of content tabs, then clear them.
+def _tab_set(key: str, tabs: list[tuple[str, str]]) -> str:
+    """Return one set of content tabs.
 
     The set is written as raw HTML, in the markup `pymdownx.tabbed` produces with
     `alternate_style` and the theme styles. The Markdown syntax (`=== "<title>"`) is
     not an option: it needs the tab content indented, where Python-Markdown reads an
     HTML output (a DataFrame, an xarray repr) as text and mangles it. In a raw HTML
     block, fenced code is still highlighted and everything else is left alone.
+
+    Parameters
+    ----------
+    key : str
+        What tells the set from the others of the page; it goes in the ids.
+    tabs : list[tuple[str, str]]
+        Title and Markdown content of each tab, in order.
+
+    Returns
+    -------
+    str
+        The HTML of the set, with its first tab selected.
+    """
+    # The prefix keeps the ids apart from those of tabs written in a Markdown cell.
+    name = f"__zallery_tab_{key}"
+    inputs = labels = blocks = ""
+    for index, (title, content) in enumerate(tabs, start=1):
+        checked = 'checked="checked" ' if index == 1 else ""
+        inputs += f'<input {checked}id="{name}_{index}" name="{name}" type="radio" />'
+        labels += f'<label for="{name}_{index}">{escape(title)}</label>'
+        blocks += f'<div class="tabbed-block">\n\n{content}\n</div>\n'
+    return (
+        f'<div class="tabbed-set tabbed-alternate" data-tabs="{key}:{len(tabs)}">'
+        f'{inputs}<div class="tabbed-labels">{labels}</div>\n'
+        f'<div class="tabbed-content">\n{blocks}</div>\n</div>\n'
+    )
+
+
+def _flush_tabs(parts: list[str], tabs: list[tuple[str, str]]) -> None:
+    """Append the pending tab cells to `parts` as one set of tabs, then clear them.
 
     Parameters
     ----------
@@ -225,20 +263,8 @@ def _flush_tabs(parts: list[str], tabs: list[tuple[str, str]]) -> None:
     """
     if not tabs:
         return
-    # The position of the set among the page fragments is unique on the page. The
-    # prefix keeps the ids apart from those of tabs written in a Markdown cell.
-    name = f"__zallery_tab_{len(parts)}"
-    inputs = labels = blocks = ""
-    for index, (title, content) in enumerate(tabs, start=1):
-        checked = 'checked="checked" ' if index == 1 else ""
-        inputs += f'<input {checked}id="{name}_{index}" name="{name}" type="radio" />'
-        labels += f'<label for="{name}_{index}">{escape(title)}</label>'
-        blocks += f'<div class="tabbed-block">\n\n{content}\n</div>\n'
-    parts.append(
-        f'<div class="tabbed-set tabbed-alternate" data-tabs="{len(parts)}:{len(tabs)}">'
-        f'{inputs}<div class="tabbed-labels">{labels}</div>\n'
-        f'<div class="tabbed-content">\n{blocks}</div>\n</div>\n'
-    )
+    # The position of the set among the page fragments is unique on the page.
+    parts.append(_tab_set(str(len(parts)), tabs))
     tabs.clear()
 
 
@@ -256,15 +282,15 @@ def _image_data(output: dict[str, object], mime: str = "image/png") -> str | Non
     return None
 
 
-def _dark_png_data(output: dict[str, object]) -> str | None:
-    """Return the dark-theme PNG payload stored by `zallery.theme`, if any."""
+def _dark_data(output: dict[str, object], mime: str = "image/png") -> str | None:
+    """Return the dark-theme payload `zallery.theme` stored for one type, if any."""
     metadata = output.get("metadata")
     if not isinstance(metadata, dict):
         return None
-    png_metadata = metadata.get("image/png")
-    if not isinstance(png_metadata, dict):
+    mime_metadata = metadata.get(mime)
+    if not isinstance(mime_metadata, dict):
         return None
-    dark = png_metadata.get("dark")
+    dark = mime_metadata.get("dark")
     return dark if isinstance(dark, str) else None
 
 
@@ -702,7 +728,7 @@ def render_notebook(
                     _flush_text_outputs(cell_parts, pending_text)
                     # Images that did not come through the matplotlib hook have no
                     # dark rendering: show the same picture in both themes.
-                    dark_png = _dark_png_data(output) or light_png
+                    dark_png = _dark_data(output) or light_png
                     light_name = f"cell_{cell_index:02d}_{output_index}_light.png"
                     dark_name = f"cell_{cell_index:02d}_{output_index}_dark.png"
                     light_path = light_image_dir / light_name
@@ -711,34 +737,55 @@ def render_notebook(
                     _write_image(dark_path, dark_png)
 
                     alt = f"Example output from cell {cell_index}, image {output_index}"
+                    pictures = (
+                        _image_tag(
+                            src=f"{base_name}_output_light/{light_name}#only-light",
+                            alt=alt,
+                        )
+                        + _image_tag(
+                            src=f"{base_name}_output_dark/{dark_name}#only-dark",
+                            alt=alt,
+                        )
+                        + "\n"
+                    )
                     scene = _image_data(output, SCENE_MIME)
-                    if scene is not None:
-                        # The scene shows in place of its still picture, in a frame
-                        # of the picture's shape: a PNG starts with its size.
+                    if scene is None:
+                        cell_parts.append(pictures)
+                    else:
                         if scene_viewer is None:
                             scene_viewer = _write_scene_viewer(out_dir)
-                        name = f"{base_name}_cell_{cell_index:02d}_{output_index}.vtksz"
-                        _write_image(out_dir / name, scene)
+                            cell_parts.append(_SCENE_STYLE)
+                        # The frame has the shape of the picture: a PNG starts with
+                        # its size.
                         width, height = struct.unpack(
                             ">II", base64.b64decode(light_png)[16:24]
                         )
-                        cell_parts.append(
-                            f'<iframe class="gallery-scene" title="{alt}" '
-                            f'src="{scene_viewer}?fileURL={name}" loading="lazy" '
-                            f'style="width: 100%; aspect-ratio: {width} / {height}; '
-                            'border: 0"></iframe>\n'
-                        )
-                    else:
-                        cell_parts.append(
-                            _image_tag(
-                                src=f"{base_name}_output_light/{light_name}#only-light",
-                                alt=alt,
+                        dark_scene = _dark_data(output, SCENE_MIME)
+                        stem = f"{base_name}_cell_{cell_index:02d}_{output_index}"
+                        frames = ""
+                        for scheme, payload in (("light", scene), ("dark", dark_scene)):
+                            if payload is None:
+                                continue
+                            name = f"{stem}{'_dark' * (scheme == 'dark')}.vtksz"
+                            _write_image(out_dir / name, payload)
+                            # Without a dark scene, the only frame is for both schemes.
+                            one = f" gallery-scene-{scheme}" * (dark_scene is not None)
+                            frames += (
+                                f'<iframe class="gallery-scene{one}" title="{alt}" '
+                                f'src="{scene_viewer}?fileURL={name}" loading="lazy" '
+                                f'style="width: 100%; aspect-ratio: {width} / {height};'
+                                ' border: 0"></iframe>\n'
                             )
-                            + _image_tag(
-                                src=f"{base_name}_output_dark/{dark_name}#only-dark",
-                                alt=alt,
+                        # The picture first, as in the pyvista documentation: a scene
+                        # loads when its tab is opened.
+                        cell_parts.append(
+                            _tab_set(
+                                f"scene_{cell_index}_{output_index}",
+                                [
+                                    ("Static Scene", pictures),
+                                    ("Interactive Scene", frames),
+                                ],
                             )
-                            + "\n"
                         )
 
                     if "thumbnail" in tags and thumbnail is None:

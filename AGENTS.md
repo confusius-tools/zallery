@@ -105,13 +105,16 @@ src/zallery/
   high as its element, so the element gets the figure's height (525px by default,
   as plotly's notebook renderer does), or it collapses to 0 on the first redraw.
 - PyVista runs in its gallery mode (environment variables set in the kernel before
-  an example imports it): `show()` displays nothing, closes the plotter, which
-  finishes its GIF, and keeps it in `_ALL_PLOTTERS` with its `last_image`. A
-  `post_execute` hook displays each closed plotter's GIF or picture, as pyvista's
-  sphinx-gallery scraper does. The plotter is closed by then, so there is no dark
-  rendering. With trame-pyvista installed, `show()` also keeps the scene exported
-  for vtk.js (`last_vtksz`): the hook puts it in the picture's output, and the page
-  shows it in an iframe of trame-vtk's standalone viewer.
+  an example imports it): `show()` displays nothing, takes a picture
+  (`last_image`) and, with `PYVISTA_AUTO_CLOSE=false`, leaves the plotter open in
+  `_ALL_PLOTTERS`. A `post_execute` hook then handles each plotter shown, as
+  pyvista's sphinx-gallery scraper does: it swaps in the dark theme's colors,
+  takes the dark picture, and closes the plotter, which also ends a GIF recording.
+  A screenshot after a color change needs `plotter.render()` first, or it is the
+  old picture. With trame-pyvista installed, `show()` also keeps the scene
+  exported for vtk.js (`last_vtksz`); the hook exports the dark one, and the page
+  shows them in iframes of trame-vtk's standalone viewer, in a tab next to the
+  picture.
 - The page of an example that raised ends with the comment `render.ERROR_MARK`,
   which the pipeline reads to pick the error thumbnail. A comment, not a file: the
   state has to come back from the cache, and nothing removes a stale file from

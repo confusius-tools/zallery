@@ -774,7 +774,7 @@ def test_render_drops_vtk_falling_back_to_off_screen_rendering(tmp_path: Path) -
 
 
 def test_render_embeds_an_exported_scene_in_the_viewer_of_trame(tmp_path: Path) -> None:
-    """The scene replaces its still picture, which stays the thumbnail."""
+    """The still picture and the scene share a tab set; the picture is the thumbnail."""
     viewer = pytest.importorskip("trame_vtk.tools.vtksz2html").HTML_VIEWER_PATH
     import base64
 
@@ -803,8 +803,44 @@ def test_render_embeds_an_exported_scene_in_the_viewer_of_trame(tmp_path: Path) 
     assert (tmp_path / "ex_cell_01_0.vtksz").read_bytes() == b"PK-scene"
     # The 1x1 picture gives the frame its shape.
     assert "aspect-ratio: 1 / 1" in md
-    assert "<img" not in md.split("---")[0]
+    static, interactive = md.index(">Static Scene<"), md.index(">Interactive Scene<")
+    picture = md.index("ex_output_light/cell_01_0_light.png#only-light")
+    assert static < interactive < picture < found.start()
     assert thumbnail == (
         tmp_path / "ex_thumb_light.png",
         tmp_path / "ex_thumb_dark.png",
     )
+
+
+def test_render_shows_the_scene_of_each_color_scheme(tmp_path: Path) -> None:
+    """A scene redrawn for the dark scheme comes in the metadata, as a dark PNG does."""
+    pytest.importorskip("trame_vtk")
+    import base64
+
+    cell = nbformat.v4.new_code_cell("pl.show()")
+    cell.outputs = [
+        nbformat.v4.new_output(
+            output_type="display_data",
+            data={
+                "image/png": _PNG,
+                SCENE_MIME: base64.b64encode(b"PK-light").decode(),
+            },
+            metadata={SCENE_MIME: {"dark": base64.b64encode(b"PK-dark").decode()}},
+        )
+    ]
+    nb = nbformat.v4.new_notebook()
+    nb.cells.append(cell)
+
+    md_path, _ = render_notebook(
+        nb, nb, out_dir=tmp_path, base_name="ex", runtime_seconds=1.0
+    )
+
+    md = md_path.read_text()
+    assert (tmp_path / "ex_cell_01_0.vtksz").read_bytes() == b"PK-light"
+    assert (tmp_path / "ex_cell_01_0_dark.vtksz").read_bytes() == b"PK-dark"
+    light = re.search(r'<iframe class="gallery-scene gallery-scene-light"[^>]*>', md)
+    dark = re.search(r'<iframe class="gallery-scene gallery-scene-dark"[^>]*>', md)
+    assert light is not None and "fileURL=ex_cell_01_0.vtksz" in light.group()
+    assert dark is not None and "fileURL=ex_cell_01_0_dark.vtksz" in dark.group()
+    # The rule that shows one of the two comes with the page.
+    assert md.count('[data-md-color-scheme="slate"] .gallery-scene-light') == 1
