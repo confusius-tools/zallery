@@ -722,3 +722,51 @@ def test_render_falls_back_to_light_png_when_no_dark_rendering(tmp_path: Path) -
     assert (
         tmp_path / "ex_output_dark" / "cell_01_0_dark.png"
     ).read_bytes() == b"only_pixel"
+
+
+def test_render_shows_a_gif_output_in_both_color_schemes(tmp_path: Path) -> None:
+    """An animation has no dark rendering: one file, shown whatever the scheme."""
+    import base64
+
+    gif = b"GIF89a-frames"
+    cell = nbformat.v4.new_code_cell("animation")
+    cell.outputs = [
+        nbformat.v4.new_output(
+            output_type="display_data",
+            data={"image/gif": base64.b64encode(gif).decode(), "text/plain": "<Image>"},
+        )
+    ]
+    nb = nbformat.v4.new_notebook()
+    nb.cells.append(cell)
+
+    md_path, _ = render_notebook(
+        nb, nb, out_dir=tmp_path, base_name="ex", runtime_seconds=1.0
+    )
+
+    md = md_path.read_text()
+    assert '<img src="ex_cell_01_0.gif" alt=' in md
+    assert "<Image>" not in md
+    assert (tmp_path / "ex_cell_01_0.gif").read_bytes() == gif
+
+
+def test_render_drops_vtk_falling_back_to_off_screen_rendering(tmp_path: Path) -> None:
+    """Without a display, VTK warns before rendering off screen: noise, not output."""
+    warning = (
+        "\x1b[0m\x1b[33m2026-11-16 12:50:07.222 (   0.361s) [    74E4BF167740]"
+        "vtkXOpenGLRenderWindow.:1452  WARN| bad X server connection. DISPLAY=\x1b[0m\n"
+    )
+    cell = nbformat.v4.new_code_cell("pl.show()")
+    cell.outputs = [
+        nbformat.v4.new_output(output_type="stream", name="stderr", text=warning),
+        nbformat.v4.new_output(output_type="stream", name="stdout", text="kept\n"),
+    ]
+    nb = nbformat.v4.new_notebook()
+    nb.cells.append(cell)
+
+    md_path, _ = render_notebook(
+        nb, nb, out_dir=tmp_path, base_name="ex", runtime_seconds=1.0
+    )
+
+    md = md_path.read_text()
+    assert "X server" not in md
+    assert "kept" in md

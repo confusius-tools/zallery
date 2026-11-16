@@ -34,10 +34,11 @@ The docs site (`zensical.toml`, `docs/`) is small on purpose: the home page incl
 there shows one feature; a new example also needs a `nav` entry in `zensical.toml`.
 `binder/Dockerfile` is the environment mybinder.org builds for the Binder badges
 of the example pages; it installs the `docs` group.
-Libraries only the examples import (pandas, xarray, plotly) are in the `docs`
-dependency group, which `just gallery` installs. CI installs the default groups only,
-so `src` and `tests` must not import them. plotly is also in `dev`: tests draw real
-plotly figures, and `render.py` imports it only for a page that has one.
+Libraries only the examples import (pandas, xarray, plotly, pyvista, imageio) are in
+the `docs` dependency group, which `just gallery` installs. CI installs the default
+groups only, so `src` and `tests` must not import them. plotly is also in `dev`:
+tests draw real plotly figures, and `render.py` imports it only for a page that has
+one. The pyvista test runs only where the `docs` group is installed.
 
 ## Code map
 
@@ -49,7 +50,7 @@ src/zallery/
 ├── discover.py  # example and section discovery
 ├── cache.py     # cache key and directory
 ├── execute.py   # kernel launch (ports below the ephemeral range), nbclient run
-├── theme.py     # runs in the kernel: light/dark re-render of matplotlib figures
+├── theme.py     # runs in the kernel: light/dark matplotlib figures, pyvista plots
 ├── render.py    # executed notebook to Markdown page and images
 ├── thumbnail.py # HTML output to thumbnail PNGs, with a headless browser
 └── index.py     # card index page
@@ -102,6 +103,12 @@ src/zallery/
   text: Zallery draws the figure itself. With `responsive: true`, a figure is as
   high as its element, so the element gets the figure's height (525px by default,
   as plotly's notebook renderer does), or it collapses to 0 on the first redraw.
+- PyVista runs in its gallery mode (environment variables set in the kernel before
+  an example imports it): `show()` displays nothing, closes the plotter, which
+  finishes its GIF, and keeps it in `_ALL_PLOTTERS` with its `last_image`. A
+  `post_execute` hook displays each closed plotter's GIF or picture, as pyvista's
+  sphinx-gallery scraper does. The plotter is closed by then, so there is no dark
+  rendering.
 - Tab cells are written as raw HTML in the markup of `pymdownx.tabbed`, not with the
   `===` syntax: indented under `===`, an HTML output is parsed as Markdown text and
   mangled (styles, scripts, table cells). `md_in_html` is no help: it wraps the tab

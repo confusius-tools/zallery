@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import os
 import subprocess
 import sys
@@ -211,3 +212,34 @@ def test_cli_returns_2_without_configuration(tmp_path: Path) -> None:
 
     assert proc.returncode == 2
     assert "[tool.zallery]" in proc.stderr
+
+
+@pytest.mark.slow
+@pytest.mark.skipif(
+    importlib.util.find_spec("pyvista") is None
+    or importlib.util.find_spec("imageio") is None,
+    reason="needs pyvista and imageio (the docs group)",
+)
+def test_cli_shows_pyvista_plots_and_animations(tmp_path: Path) -> None:
+    """The plain pyvista calls of a notebook give a picture, or a GIF if recorded."""
+    project, examples = _make_project(tmp_path)
+    (examples / "io" / "hello.py").write_text(
+        "# %%\nimport pyvista as pv\n\n"
+        "pl = pv.Plotter()\npl.add_mesh(pv.Sphere())\n"
+        "pl.open_gif('spin.gif')\n"
+        "for angle in (0, 90, 180):\n"
+        "    pl.camera.azimuth = angle\n    pl.write_frame()\n"
+        "pl.show()\n\n"
+        "# %%\npl = pv.Plotter()\npl.add_mesh(pv.Cube())\npl.show()\n"
+    )
+
+    proc = _run(project)
+
+    assert proc.returncode == 0, f"stderr: {proc.stderr}\nstdout: {proc.stdout}"
+    built = examples / "_built" / "io"
+    markdown = (built / "hello.md").read_text(encoding="utf-8")
+    assert '<img src="hello_cell_01_0.gif"' in markdown
+    assert (built / "hello_cell_01_0.gif").read_bytes().startswith(b"GIF8")
+    assert "hello_output_light/cell_02_0_light.png#only-light" in markdown
+    # pyvista's hint about its interactive backends is not part of the page.
+    assert "trame" not in markdown

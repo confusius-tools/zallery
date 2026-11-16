@@ -11,6 +11,8 @@ palette-swapping the drawn artists and printing again.
 from __future__ import annotations
 
 import importlib
+import os
+import sys
 import warnings
 from collections.abc import Callable
 from contextlib import ExitStack
@@ -348,10 +350,48 @@ def render_both(
     return data, {**metadata, "dark": dark[0]}
 
 
+PYVISTA_GALLERY_MODE = {
+    "PYVISTA_OFF_SCREEN": "true",
+    "PYVISTA_BUILDING_GALLERY": "true",
+    "PYVISTA_JUPYTER_BACKEND": "none",
+}
+"""Environment pyvista reads when imported, set for the examples that import it.
+
+In its gallery mode, `Plotter.show()` displays nothing in the notebook: it takes a
+picture, closes the plotter, which finishes a GIF it records, and keeps it for
+`show_pyvista_plots`. Set with `os.environ.setdefault`: a project can override
+each value.
+"""
+
+
+def show_pyvista_plots() -> None:
+    """Display the picture of each pyvista plotter shown by the cell that just ran.
+
+    A plotter that records a GIF shows the GIF, others their last picture, as
+    pyvista's own sphinx-gallery scraper does. Plotters not shown yet are left for
+    a later cell.
+    """
+    pyvista = sys.modules.get("pyvista")
+    if pyvista is None:
+        return
+    from IPython.display import Image, display
+    from PIL import Image as PILImage
+
+    plotters = pyvista.plotting.plotter._ALL_PLOTTERS
+    for key, plotter in list(plotters.items()):
+        if not plotter._closed:
+            continue
+        del plotters[key]
+        if plotter._gif_filename is not None:
+            display(Image(filename=plotter._gif_filename))
+        elif plotter.last_image is not None:
+            display(PILImage.fromarray(plotter.last_image))
+
+
 def setup_kernel(
     hook_module: str | None = None, palettes: Palettes | None = None
 ) -> None:
-    """Configure the running kernel: light rcParams, retina PNGs, dark hook.
+    """Configure the running kernel: light rcParams, retina PNGs, dark hook, pyvista.
 
     Must run before any example cell. `savefig.facecolor` is deliberately left at
     `"auto"` so the swapped figure facecolor is what gets printed.
@@ -406,3 +446,6 @@ def setup_kernel(
             render_both, printer=printer, hook=hook, palette=dict(zip(light, dark))
         ),
     )
+    for name, value in PYVISTA_GALLERY_MODE.items():
+        os.environ.setdefault(name, value)
+    shell.events.register("post_execute", show_pyvista_plots)

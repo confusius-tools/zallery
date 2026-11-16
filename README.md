@@ -204,6 +204,21 @@ renderer setup.
   `thumbnail` cell is its example's thumbnail, drawn to fill the card in each color
   scheme.
 
+## PyVista plots
+
+A PyVista plotter that a cell shows with `show()` gives its picture under the cell,
+as in a notebook. The example needs no setup: Zallery runs PyVista in its gallery
+mode, set with environment variables before the example imports it
+(`PYVISTA_OFF_SCREEN`, `PYVISTA_BUILDING_GALLERY`, and `PYVISTA_JUPYTER_BACKEND`
+set to `none`). A variable you set yourself keeps your value.
+
+- A plotter that records a GIF, with `open_gif` and `write_frame`, shows the
+  animation instead of its last picture. Recording needs the `imageio` package.
+- The pictures are the same in both color schemes, on PyVista's background.
+- A GIF is not taken as the thumbnail: tag a cell that shows a still picture.
+- On a machine without a display, VTK draws off screen through EGL or OSMesa: the
+  machine needs one of them (a GPU driver or Mesa).
+
 ## HTML thumbnails
 
 An example without a figure can show an HTML output, such as a DataFrame or an

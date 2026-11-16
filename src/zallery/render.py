@@ -234,17 +234,17 @@ def _flush_tabs(parts: list[str], tabs: list[tuple[str, str]]) -> None:
     tabs.clear()
 
 
-def _png_data(output: dict[str, object]) -> str | None:
-    """Return the base64 PNG payload from an output if present."""
+def _image_data(output: dict[str, object], mime: str = "image/png") -> str | None:
+    """Return the base64 payload of one image type from an output, if present."""
     data = output.get("data")
     if not isinstance(data, dict):
         return None
-    png = data.get("image/png")
-    png_joined = _join_str_list(png)
-    if png_joined is not None:
-        return png_joined
-    if isinstance(png, str):
-        return png
+    image = data.get(mime)
+    image_joined = _join_str_list(image)
+    if image_joined is not None:
+        return image_joined
+    if isinstance(image, str):
+        return image
     return None
 
 
@@ -260,8 +260,8 @@ def _dark_png_data(output: dict[str, object]) -> str | None:
     return dark if isinstance(dark, str) else None
 
 
-def _write_png(path: Path, payload: str) -> None:
-    """Decode and write one base64 PNG payload."""
+def _write_image(path: Path, payload: str) -> None:
+    """Decode and write one base64 image payload."""
     path.write_bytes(base64.b64decode(payload))
 
 
@@ -513,6 +513,9 @@ def _clean_stream_text(text: str) -> str:
         if skip_next and "from .autonotebook import tqdm as notebook_tqdm" in line:
             skip_next = False
             continue
+        # VTK, on a machine without display, before it renders off screen instead.
+        if "vtkXOpenGLRenderWindow" in line and "bad X server connection" in line:
+            continue
         skip_next = False
         cleaned_lines.append(line)
     return "\n".join(cleaned_lines).strip("\n")
@@ -648,7 +651,16 @@ def render_notebook(
                 continue
 
             if output_type in {"execute_result", "display_data"}:
-                light_png = _png_data(output)
+                gif = _image_data(output, "image/gif")
+                if gif is not None:
+                    _flush_text_outputs(cell_parts, pending_text)
+                    # An animation has no dark rendering: one file, in both schemes.
+                    name = f"{base_name}_cell_{cell_index:02d}_{output_index}.gif"
+                    _write_image(out_dir / name, gif)
+                    alt = f"Example output from cell {cell_index}, image {output_index}"
+                    cell_parts.append(_image_tag(src=name, alt=alt) + "\n")
+                    continue
+                light_png = _image_data(output)
                 if light_png is not None:
                     _flush_text_outputs(cell_parts, pending_text)
                     # Images that did not come through the matplotlib hook have no
@@ -658,8 +670,8 @@ def render_notebook(
                     dark_name = f"cell_{cell_index:02d}_{output_index}_dark.png"
                     light_path = light_image_dir / light_name
                     dark_path = dark_image_dir / dark_name
-                    _write_png(light_path, light_png)
-                    _write_png(dark_path, dark_png)
+                    _write_image(light_path, light_png)
+                    _write_image(dark_path, dark_png)
 
                     alt = f"Example output from cell {cell_index}, image {output_index}"
                     cell_parts.append(
