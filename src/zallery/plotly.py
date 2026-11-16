@@ -11,7 +11,9 @@ plotly is imported inside the functions only, once an example has shown a figure
 
 from __future__ import annotations
 
+import copy
 import json
+import warnings
 from contextlib import ExitStack
 from typing import TYPE_CHECKING, Any
 
@@ -97,12 +99,29 @@ class Plotly(Integration):
         metadata : dict[str, Any]
             The metadata of the bundle. It gets the dark figure, under
             `metadata[MIME]["dark"]`.
+
+        Warns
+        -----
+        UserWarning
+            If plotly rejects the figure, which can be shown with
+            `validate=False`. The output is then left as sent: the figure is
+            drawn as it is in both schemes.
         """
         import plotly.graph_objects as go
         import plotly.io as pio
 
         payload = data[MIME]
-        fig = go.Figure(payload)
+        try:
+            # A copy: plotly takes the type out of each trace and does not put
+            # it back when it raises.
+            fig = go.Figure(copy.deepcopy(payload))
+        except ValueError:
+            warnings.warn(
+                "Zallery: plotly rejects this figure, so it is shown as it is in"
+                " both color schemes.",
+                stacklevel=2,
+            )
+            return
         if "template" not in (payload.get("layout") or {}):
             # A figure shown without template: plotly gave this copy its default.
             fig.layout.template = None

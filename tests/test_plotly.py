@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import json
 import subprocess
 import sys
@@ -94,3 +95,17 @@ def test_both_gives_a_figure_without_template_only_what_retheme_merges() -> None
     Plotly()._both(data, {})
     # None of the colors, fonts and axes of plotly's default template.
     assert data[MIME]["layout"]["template"]["layout"] == {"paper_bgcolor": CLEAR}
+
+
+def test_both_leaves_a_figure_plotly_rejects_as_sent() -> None:
+    """A figure shown with `validate=False` is drawn as it is in both schemes."""
+    payload = {"data": [{"type": "bar", "y": [1], "no_such_property": 1}], "layout": {}}
+    data = {MIME: payload}
+    sent = copy.deepcopy(data)
+    metadata: dict = {}
+
+    with pytest.warns(UserWarning, match="plotly"):
+        Plotly()._both(data, metadata)
+
+    assert data == sent
+    assert metadata == {}
