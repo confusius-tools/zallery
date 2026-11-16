@@ -197,6 +197,11 @@ integrations = ["tools.gallery:Figures"]
   that equals a palette color is replaced too.
 - `foreground` is matched, not set: its light value must be the color matplotlib
   draws text and axes with. To change it, set the matching keys in `rcparams` too.
+- `rcparams` in a subclass replaces the default one: the dpi and figure size above
+  are lost. To keep them, write `rcparams = {**Matplotlib.rcparams, "font.size": 9}`.
+- In a project that selects ruff's rule RUF012, ruff flags `cmaps = {...}` and
+  `colors = {...}` as mutable class attributes. Annotate them as
+  `Mapping[str, str]`, as `Matplotlib` does, or ignore the rule for that file.
 
 ## Integrations
 
