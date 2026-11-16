@@ -240,6 +240,29 @@ def test_cli_shows_pyvista_plots_and_animations(tmp_path: Path) -> None:
     markdown = (built / "hello.md").read_text(encoding="utf-8")
     assert '<img src="hello_cell_01_0.gif"' in markdown
     assert (built / "hello_cell_01_0.gif").read_bytes().startswith(b"GIF8")
-    assert "hello_output_light/cell_02_0_light.png#only-light" in markdown
+    assert (built / "hello_output_light" / "cell_02_0_light.png").is_file()
     # pyvista's hint about its interactive backends is not part of the page.
     assert "trame" not in markdown
+
+
+@pytest.mark.slow
+@pytest.mark.skipif(
+    importlib.util.find_spec("trame_pyvista") is None,
+    reason="needs pyvista and trame-pyvista (the docs group)",
+)
+def test_cli_embeds_the_interactive_scene_of_a_pyvista_plot(tmp_path: Path) -> None:
+    """With trame-pyvista installed, pyvista exports each scene shown for the browser."""
+    project, examples = _make_project(tmp_path)
+    (examples / "io" / "hello.py").write_text(
+        "# %%\nimport pyvista as pv\n\n"
+        "pl = pv.Plotter()\npl.add_mesh(pv.Cube())\npl.show()\n"
+    )
+
+    proc = _run(project)
+
+    assert proc.returncode == 0, f"stderr: {proc.stderr}\nstdout: {proc.stdout}"
+    built = examples / "_built" / "io"
+    markdown = (built / "hello.md").read_text(encoding="utf-8")
+    assert "?fileURL=hello_cell_01_0.vtksz" in markdown
+    # A zip archive, which the viewer reads.
+    assert (built / "hello_cell_01_0.vtksz").read_bytes().startswith(b"PK")

@@ -13,6 +13,13 @@ The dark color at a position replaces the light color at the same position.
 """
 
 
+SCENE_MIME = "application/vnd.zallery.vtksz"
+"""Mime type the kernel gives a pyvista scene exported for the browser.
+
+The payload is the base64 text of a `.vtksz` file, next to the still picture of the
+plotter in the same output (see `zallery.theme.show_pyvista_plots`).
+"""
+
 HtmlThumbnail = Callable[[str, Path, Path], bool]
 """Writes the thumbnails of an HTML output.
 

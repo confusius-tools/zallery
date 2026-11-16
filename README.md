@@ -214,7 +214,13 @@ set to `none`). A variable you set yourself keeps your value.
 
 - A plotter that records a GIF, with `open_gif` and `write_frame`, shows the
   animation instead of its last picture. Recording needs the `imageio` package.
-- The pictures are the same in both color schemes, on PyVista's background.
+- With the `trame-pyvista` package installed, a plotter without a GIF shows as a
+  scene the reader can rotate and zoom. PyVista exports the scene and the browser
+  draws it: the site needs no server. Zallery writes one `.vtksz` file for each
+  scene, which holds the data of the plot, and copies the viewer of trame next to
+  the page (about 1 MB, once per section). The still picture stays the thumbnail.
+- The pictures and scenes are the same in both color schemes, on PyVista's
+  background.
 - A GIF is not taken as the thumbnail: tag a cell that shows a still picture.
 - On a machine without a display, VTK draws off screen through EGL or OSMesa: the
   machine needs one of them (a GPU driver or Mesa).
@@ -299,6 +305,7 @@ Zallery writes Markdown pages; the Zensical site provides the rest, in
 - Optionally, styles for the classes Zallery emits: `examples-cards` and
   `examples-card-summary` on the index page, `gallery-output` and
   `gallery-rich-output` around cell outputs, `gallery-plotly` on plotly figures,
+  `gallery-scene` on PyVista scenes,
   `gallery-binder` on the Binder
   badge. This repository's
   [`zensical.toml`](https://github.com/confusius-tools/zallery/blob/main/zensical.toml)

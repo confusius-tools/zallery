@@ -6,13 +6,14 @@ import base64
 import json
 import re
 import shutil
+import struct
 from html import escape
 from pathlib import Path
 from typing import Any
 
 import nbformat
 
-from zallery._types import HtmlThumbnail
+from zallery._types import SCENE_MIME, HtmlThumbnail
 
 BINDER_BADGE = (
     "[![Launch in Binder](https://mybinder.org/badge_logo.svg)"
@@ -297,6 +298,33 @@ def _write_plotly_js(out_dir: Path) -> str:
 
     name = f"plotly-{get_plotlyjs_version()}.min.js"
     (out_dir / name).write_text(get_plotlyjs(), encoding="utf-8")
+    return name
+
+
+def _write_scene_viewer(out_dir: Path) -> str:
+    """Copy the page that draws an exported pyvista scene next to a page.
+
+    It is the standalone viewer of trame-vtk, which is installed whenever pyvista
+    exports a scene: it loads the scene named in its `fileURL` query and draws it
+    with vtk.js, in the browser alone.
+
+    Parameters
+    ----------
+    out_dir : pathlib.Path
+        Folder of the page.
+
+    Returns
+    -------
+    str
+        The file name, which holds the trame-vtk version.
+    """
+    # Imported here, for galleries with no pyvista scene.
+    from importlib.metadata import version
+
+    from trame_vtk.tools.vtksz2html import HTML_VIEWER_PATH
+
+    name = f"vtk-viewer-{version('trame-vtk')}.html"
+    shutil.copyfile(HTML_VIEWER_PATH, out_dir / name)
     return name
 
 
@@ -600,6 +628,7 @@ def render_notebook(
     tabs: list[tuple[str, str]] = []
     thumbnail: tuple[Path, Path] | None = None
     plotly_js: str | None = None
+    scene_viewer: str | None = None
     cells = source_notebook.cells
     # Index of a Markdown cell already written under the code cell it annotates.
     moved = 0
@@ -674,17 +703,35 @@ def render_notebook(
                     _write_image(dark_path, dark_png)
 
                     alt = f"Example output from cell {cell_index}, image {output_index}"
-                    cell_parts.append(
-                        _image_tag(
-                            src=f"{base_name}_output_light/{light_name}#only-light",
-                            alt=alt,
+                    scene = _image_data(output, SCENE_MIME)
+                    if scene is not None:
+                        # The scene shows in place of its still picture, in a frame
+                        # of the picture's shape: a PNG starts with its size.
+                        if scene_viewer is None:
+                            scene_viewer = _write_scene_viewer(out_dir)
+                        name = f"{base_name}_cell_{cell_index:02d}_{output_index}.vtksz"
+                        _write_image(out_dir / name, scene)
+                        width, height = struct.unpack(
+                            ">II", base64.b64decode(light_png)[16:24]
                         )
-                        + _image_tag(
-                            src=f"{base_name}_output_dark/{dark_name}#only-dark",
-                            alt=alt,
+                        cell_parts.append(
+                            f'<iframe class="gallery-scene" title="{alt}" '
+                            f'src="{scene_viewer}?fileURL={name}" loading="lazy" '
+                            f'style="width: 100%; aspect-ratio: {width} / {height}; '
+                            'border: 0"></iframe>\n'
                         )
-                        + "\n"
-                    )
+                    else:
+                        cell_parts.append(
+                            _image_tag(
+                                src=f"{base_name}_output_light/{light_name}#only-light",
+                                alt=alt,
+                            )
+                            + _image_tag(
+                                src=f"{base_name}_output_dark/{dark_name}#only-dark",
+                                alt=alt,
+                            )
+                            + "\n"
+                        )
 
                     if "thumbnail" in tags and thumbnail is None:
                         thumb_light = out_dir / f"{base_name}_thumb_light.png"

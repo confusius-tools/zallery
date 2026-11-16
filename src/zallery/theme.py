@@ -10,7 +10,9 @@ palette-swapping the drawn artists and printing again.
 
 from __future__ import annotations
 
+import base64
 import importlib
+import io
 import os
 import sys
 import warnings
@@ -31,7 +33,7 @@ from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
 from matplotlib.rcsetup import cycler
 
-from zallery._types import Palettes
+from zallery._types import SCENE_MIME, Palettes
 
 Printer = Callable[[Figure], tuple[str, dict[str, Any]] | None]
 """A matplotlib_inline figure printer: base64 PNG plus metadata, or `None` if empty."""
@@ -370,6 +372,10 @@ def show_pyvista_plots() -> None:
     A plotter that records a GIF shows the GIF, others their last picture, as
     pyvista's own sphinx-gallery scraper does. Plotters not shown yet are left for
     a later cell.
+
+    With trame-pyvista installed, pyvista also exports the scene of each plotter
+    it shows, for a browser to draw. It goes in the output of the picture, under
+    `SCENE_MIME`.
     """
     pyvista = sys.modules.get("pyvista")
     if pyvista is None:
@@ -385,7 +391,13 @@ def show_pyvista_plots() -> None:
         if plotter._gif_filename is not None:
             display(Image(filename=plotter._gif_filename))
         elif plotter.last_image is not None:
-            display(PILImage.fromarray(plotter.last_image))
+            png = io.BytesIO()
+            PILImage.fromarray(plotter.last_image).save(png, format="png")
+            bundle = {"image/png": base64.b64encode(png.getvalue()).decode()}
+            scene = getattr(plotter, "last_vtksz", None)
+            if scene is not None:
+                bundle[SCENE_MIME] = base64.b64encode(scene).decode()
+            display(bundle, raw=True)
 
 
 def setup_kernel(

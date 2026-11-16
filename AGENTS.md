@@ -34,11 +34,12 @@ The docs site (`zensical.toml`, `docs/`) is small on purpose: the home page incl
 there shows one feature; a new example also needs a `nav` entry in `zensical.toml`.
 `binder/Dockerfile` is the environment mybinder.org builds for the Binder badges
 of the example pages; it installs the `docs` group.
-Libraries only the examples import (pandas, xarray, plotly, pyvista, imageio) are in
-the `docs` dependency group, which `just gallery` installs. CI installs the default
-groups only, so `src` and `tests` must not import them. plotly is also in `dev`:
-tests draw real plotly figures, and `render.py` imports it only for a page that has
-one. The pyvista test runs only where the `docs` group is installed.
+Libraries only the examples import (pandas, xarray, plotly, pyvista, trame-pyvista,
+imageio) are in the `docs` dependency group, which `just gallery` installs. CI
+installs the default groups only, so `src` and `tests` must not import them. plotly
+is also in `dev`: tests draw real plotly figures, and `render.py` imports it only
+for a page that has one. The pyvista tests run only where the `docs` group is
+installed.
 
 ## Code map
 
@@ -108,7 +109,9 @@ src/zallery/
   finishes its GIF, and keeps it in `_ALL_PLOTTERS` with its `last_image`. A
   `post_execute` hook displays each closed plotter's GIF or picture, as pyvista's
   sphinx-gallery scraper does. The plotter is closed by then, so there is no dark
-  rendering.
+  rendering. With trame-pyvista installed, `show()` also keeps the scene exported
+  for vtk.js (`last_vtksz`): the hook puts it in the picture's output, and the page
+  shows it in an iframe of trame-vtk's standalone viewer.
 - Tab cells are written as raw HTML in the markup of `pymdownx.tabbed`, not with the
   `===` syntax: indented under `===`, an HTML output is parsed as Markdown text and
   mangled (styles, scripts, table cells). `md_in_html` is no help: it wraps the tab

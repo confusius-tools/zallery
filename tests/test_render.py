@@ -12,6 +12,7 @@ import plotly.io as pio
 import pytest
 from plotly.offline import get_plotlyjs, get_plotlyjs_version
 
+from zallery._types import SCENE_MIME
 from zallery.render import render_notebook
 
 
@@ -770,3 +771,40 @@ def test_render_drops_vtk_falling_back_to_off_screen_rendering(tmp_path: Path) -
     md = md_path.read_text()
     assert "X server" not in md
     assert "kept" in md
+
+
+def test_render_embeds_an_exported_scene_in_the_viewer_of_trame(tmp_path: Path) -> None:
+    """The scene replaces its still picture, which stays the thumbnail."""
+    viewer = pytest.importorskip("trame_vtk.tools.vtksz2html").HTML_VIEWER_PATH
+    import base64
+
+    cell = nbformat.v4.new_code_cell("pl.show()")
+    cell.metadata["tags"] = ["thumbnail"]
+    cell.outputs = [
+        nbformat.v4.new_output(
+            output_type="display_data",
+            data={
+                "image/png": _PNG,
+                SCENE_MIME: base64.b64encode(b"PK-scene").decode(),
+            },
+        )
+    ]
+    nb = nbformat.v4.new_notebook()
+    nb.cells.append(cell)
+
+    md_path, thumbnail = render_notebook(
+        nb, nb, out_dir=tmp_path, base_name="ex", runtime_seconds=1.0
+    )
+
+    md = md_path.read_text()
+    found = re.search(r'<iframe [^>]*src="([^"?]+)\?fileURL=ex_cell_01_0\.vtksz"', md)
+    assert found is not None
+    assert (tmp_path / found.group(1)).read_bytes() == viewer.read_bytes()
+    assert (tmp_path / "ex_cell_01_0.vtksz").read_bytes() == b"PK-scene"
+    # The 1x1 picture gives the frame its shape.
+    assert "aspect-ratio: 1 / 1" in md
+    assert "<img" not in md.split("---")[0]
+    assert thumbnail == (
+        tmp_path / "ex_thumb_light.png",
+        tmp_path / "ex_thumb_dark.png",
+    )
