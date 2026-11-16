@@ -3,12 +3,18 @@
 from __future__ import annotations
 
 import re
+import sys
+from collections.abc import Iterator
+from contextlib import ExitStack
 from pathlib import Path
 
 import pytest
+from IPython.core.interactiveshell import InteractiveShell
+from IPython.display import display
+from IPython.utils.capture import capture_output
 
 from zallery import Integration
-from zallery.integration import load, name, resolve
+from zallery.integration import load, name, resolve, setup_kernel
 
 _MODULE = (
     "from zallery import Integration\n"
@@ -79,3 +85,129 @@ def test_resolve_rejects_two_subclasses_of_one_stock_class() -> None:
 
     with pytest.raises(ValueError, match="One.*Two|Two.*One"):
         resolve([One, Two], [A])
+
+
+@pytest.fixture
+def shell() -> Iterator[InteractiveShell]:
+    """An IPython shell in this process, as the kernel of an example has one."""
+    instance = InteractiveShell.instance()
+    yield instance
+    InteractiveShell.clear_instance()
+
+
+class Card:
+    """A display Zallery does not know: an HTML repr that depends on a color."""
+
+    def __init__(self) -> None:
+        self.color = "black"
+
+    def _repr_html_(self) -> str:
+        return f'<p style="color:{self.color}">card</p>'
+
+
+class Gold(Card):
+    """A subclass of the type an integration names."""
+
+
+class Cards(Integration):
+    """An integration as a project would write it for `Card`."""
+
+    type = f"{Card.__module__}.{Card.__qualname__}"
+
+    def retheme(self, obj, scheme):
+        if scheme == "light":
+            return None
+        stack = ExitStack()
+        stack.callback(setattr, obj, "color", obj.color)
+        obj.color = "white"
+        return stack
+
+
+def _shown(obj: object) -> list:
+    """Display an object; return the outputs the shell published."""
+    with capture_output() as captured:
+        display(obj)
+    return captured.outputs
+
+
+def test_an_object_of_the_type_is_shown_with_its_dark_look(
+    shell: InteractiveShell,
+) -> None:
+    Cards()._install(shell)
+    card = Card()
+    (output,) = _shown(card)
+    assert "color:black" in output.data["text/html"]
+    assert "color:white" in output.metadata["text/html"]["dark"]
+    assert "text/plain" not in output.metadata
+    assert card.color == "black"
+
+
+def test_an_object_shown_twice_gives_the_same_output_twice(
+    shell: InteractiveShell,
+) -> None:
+    Cards()._install(shell)
+    card = Card()
+    (first,), (second,) = _shown(card), _shown(card)
+    assert first.data == second.data
+    assert first.metadata == second.metadata
+
+
+def test_an_object_of_a_subclass_is_rethemed_too(shell: InteractiveShell) -> None:
+    Cards()._install(shell)
+    (output,) = _shown(Gold())
+    assert "color:white" in output.metadata["text/html"]["dark"]
+
+
+def test_an_object_with_one_look_has_no_dark_variant(shell: InteractiveShell) -> None:
+    class Plain(Cards):
+        def retheme(self, obj, scheme):
+            return None
+
+    Plain()._install(shell)
+    (output,) = _shown(Card())
+    assert "color:black" in output.data["text/html"]
+    assert "dark" not in output.metadata.get("text/html", {})
+
+
+def test_a_retheme_that_raises_leaves_the_light_output_and_the_object(
+    shell: InteractiveShell,
+) -> None:
+    class Broken(Cards):
+        def retheme(self, obj, scheme):
+            if scheme == "dark":
+                raise RuntimeError("no dark look")
+
+    Broken()._install(shell)
+    card = Card()
+    outputs = _shown(card)
+    assert any("color:black" in o.data.get("text/html", "") for o in outputs)
+    assert card.color == "black"
+
+
+def test_an_integration_without_type_installs_nothing(shell: InteractiveShell) -> None:
+    Integration()._install(shell)
+    (output,) = _shown(Card())
+    assert "dark" not in output.metadata.get("text/html", {})
+
+
+def test_setup_kernel_sets_up_then_installs_each_class(
+    shell: InteractiveShell, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (tmp_path / "t7_order.py").write_text(
+        "from zallery import Integration\n"
+        "calls = []\n"
+        "class One(Integration):\n"
+        "    def setup(self): calls.append('setup one')\n"
+        "    def _install(self, shell): calls.append('install one')\n"
+        "class Two(One):\n"
+        "    def setup(self): calls.append('setup two')\n"
+        "    def _install(self, shell): calls.append('install two')\n"
+    )
+    monkeypatch.syspath_prepend(tmp_path)
+    setup_kernel(["t7_order:One", "t7_order:Two"])
+    assert sys.modules["t7_order"].calls == [
+        "setup one",
+        "setup two",
+        "install one",
+        "install two",
+    ]

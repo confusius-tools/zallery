@@ -14,9 +14,14 @@ example; `html` runs in the builder.
 from __future__ import annotations
 
 import importlib
+import warnings
 from collections.abc import Sequence
-from contextlib import AbstractContextManager
-from typing import Any, Literal
+from contextlib import AbstractContextManager, ExitStack
+from functools import partial
+from typing import TYPE_CHECKING, Any, Literal
+
+if TYPE_CHECKING:
+    from IPython.core.interactiveshell import InteractiveShell
 
 Scheme = Literal["light", "dark"]
 """A color scheme of the site."""
@@ -98,6 +103,65 @@ class Integration:
             The HTML to write on the page.
         """
         return html
+
+    def _install(self, shell: InteractiveShell) -> None:
+        """Have the kernel show the objects of `type` once for each scheme.
+
+        The generic capture: it serves any object IPython's formatters can show.
+        The class is registered by name, so that its library is not imported
+        before an example uses it. A stock class whose library does not display
+        through the formatters replaces this method.
+
+        Parameters
+        ----------
+        shell : IPython.core.interactiveshell.InteractiveShell
+            The shell of the kernel.
+        """
+        if self.type is None:
+            return
+        module, _, cls = self.type.rpartition(".")
+        # IPython annotates the formatter as optional; a running shell has one.
+        handler = shell.display_formatter.ipython_display_formatter  # ty: ignore[unresolved-attribute]
+        handler.for_type_by_name(module, cls, partial(self._display, shell=shell))
+
+    def _display(self, obj: Any, *, shell: InteractiveShell) -> None:
+        """Publish one output for an object: its light look, the dark one beside it.
+
+        The object goes through IPython's formatters under `retheme` for each
+        scheme. The dark payload of each mime type that differs from the light
+        one goes in the metadata of that type, under `"dark"`.
+
+        Parameters
+        ----------
+        obj : Any
+            An object of the class named by `type`, being displayed.
+        shell : IPython.core.interactiveshell.InteractiveShell
+            The shell of the kernel.
+        """
+        from IPython.display import publish_display_data
+
+        formatter: Any = shell.display_formatter
+        handler = formatter.ipython_display_formatter
+        bundles: dict[str, tuple[dict[str, Any], dict[str, Any]]] = {}
+        for scheme in ("light", "dark"):
+            with ExitStack() as stack:
+                look = self.retheme(obj, scheme)
+                if look is None and scheme == "dark":
+                    # The dark look is the light one.
+                    break
+                if look is not None:
+                    stack.enter_context(look)
+                # Off, or `format` would come back here.
+                stack.callback(setattr, handler, "enabled", handler.enabled)
+                handler.enabled = False
+                bundles[scheme] = formatter.format(obj)
+        data, metadata = bundles["light"]
+        dark, _ = bundles.get("dark", ({}, {}))
+        for mime, payload in dark.items():
+            # The text of an object is not a look.
+            if mime != "text/plain" and payload != data.get(mime):
+                metadata.setdefault(mime, {})["dark"] = payload
+        publish_display_data(data, metadata)
 
 
 def name(cls: type[Integration]) -> str:
@@ -205,3 +269,33 @@ def resolve(
             )
         effective[index] = cls
     return effective + added
+
+
+def setup_kernel(names: Sequence[str]) -> None:
+    """Configure the running kernel for the integration classes in effect.
+
+    Runs in the kernel, in a cell of its own before the first cell of the example.
+    Each class is instantiated and set up, in order; then each one arranges the
+    capture of its objects.
+
+    Parameters
+    ----------
+    names : Sequence[str]
+        The classes in effect, as `"module:Class"`, importable from the kernel.
+        The builder resolves them (see `resolve`): the kernel uses them as given.
+    """
+    from IPython import get_ipython
+
+    warnings.filterwarnings("ignore", message="IProgress not found.*")
+    # rich.live.Live.refresh() warns once per process the first time it detects a
+    # Jupyter kernel without ipywidgets installed; it would land in the rendered
+    # output of whichever cell happens to trigger it.
+    warnings.filterwarnings(
+        "ignore", message='install "ipywidgets" for Jupyter support'
+    )
+    integrations = [cls() for cls in load(names)]
+    for integration in integrations:
+        integration.setup()
+    shell = get_ipython()
+    for integration in integrations:
+        integration._install(shell)
