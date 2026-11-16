@@ -19,7 +19,7 @@ ax.set_title("Not the thumbnail")
 plt.show()
 
 # %% [markdown]
-# The tagged cell. Its image uses the `coolwarm` colormap, which zallery replaces
+# The tagged cell. Its image uses the `coolwarm` colormap, which Zallery replaces
 # with `berlin` on the dark page.
 
 # %% tags=["thumbnail"]

@@ -5,10 +5,10 @@
 # notebook: you can zoom, pan, and read values on hover. The example needs no
 # setup: show the figure as the last expression of a cell, or call `fig.show()`.
 #
-# In the dark color scheme, zallery draws the figure again with plotly's dark
+# In the dark color scheme, Zallery draws the figure again with plotly's dark
 # template merged into the figure's own. Switch the scheme to see it.
 #
-# zallery copies plotly.js next to the page from the plotly package installed for
+# Zallery copies plotly.js next to the page from the plotly package installed for
 # the build, so the page loads nothing from plotly's servers.
 
 # %%

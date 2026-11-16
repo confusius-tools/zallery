@@ -1,4 +1,4 @@
-/* Page backgrounds match the figure backgrounds zallery renders with
+/* Page backgrounds match the figure backgrounds Zallery renders with
    (`LIGHT.bg` and `DARK.bg` in `zallery.theme`), so figures blend into the page. */
 
 /* Light mode: red accent on soft gray background. */
@@ -43,7 +43,7 @@
 
 /* ── Gallery ──────────────────────────────────────────────────────────────── */
 
-/* Each image zallery writes comes in a light and a dark variant. */
+/* Each image Zallery writes comes in a light and a dark variant. */
 [data-md-color-scheme="slate"] img[src$="#only-light"] { display: none; }
 [data-md-color-scheme="default"] img[src$="#only-dark"] { display: none; }
 

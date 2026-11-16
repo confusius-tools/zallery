@@ -30,6 +30,6 @@ print(ordered[-1])  # (2)!
 # 2.  The last item of a sorted list is the largest one.
 
 # %% [markdown]
-# zallery writes the list directly under the code, above the output: that is where
+# Zallery writes the list directly under the code, above the output: that is where
 # Zensical reads the notes from. In the downloaded script, the markers are plain
 # comments.

@@ -279,7 +279,7 @@ def _write_plotly_js(out_dir: Path) -> str:
     """Write the plotly.js of the installed plotly next to a page.
 
     plotly is installed whenever a page shows a plotly figure: the kernel runs on
-    the interpreter zallery runs on. Its plotly.js is the one its figures are made
+    the interpreter Zallery runs on. Its plotly.js is the one its figures are made
     for.
 
     Parameters

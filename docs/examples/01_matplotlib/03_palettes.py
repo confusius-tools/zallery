@@ -16,7 +16,7 @@
 #
 # A palette is the name of a listed matplotlib colormap, or a list of colors. The
 # example runs once, with the light palette as matplotlib's color cycle. For the
-# dark page, zallery replaces each color with the one at the same position in the
+# dark page, Zallery replaces each color with the one at the same position in the
 # dark palette. Switch the site theme to compare.
 
 # %% tags=["thumbnail"]

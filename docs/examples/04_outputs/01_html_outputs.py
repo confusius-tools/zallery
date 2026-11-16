@@ -4,7 +4,7 @@
 # An object that displays itself as HTML in a notebook keeps that rendering on the
 # page.
 #
-# zallery copies the HTML of an output to the page as it is, and the site's theme
+# Zallery copies the HTML of an output to the page as it is, and the site's theme
 # styles it in both color schemes.
 #
 # ## An object with an HTML representation

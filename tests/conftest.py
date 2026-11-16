@@ -1,4 +1,4 @@
-"""Shared fixtures for the zallery tests."""
+"""Shared fixtures for the Zallery tests."""
 
 from __future__ import annotations
 

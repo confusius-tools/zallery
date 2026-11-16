@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 # The environment mybinder.org builds for the "Launch in Binder" buttons of the docs
-# examples: zallery, what the examples import, and JupyterLab opening the
+# examples: Zallery, what the examples import, and JupyterLab opening the
 # percent-format scripts as notebooks.
 FROM python:3.13-slim-bookworm
 
@@ -24,9 +24,9 @@ COPY --chown=${NB_UID}:${NB_UID} . ${HOME}/
 USER ${NB_USER}
 WORKDIR ${HOME}
 
-# zallery and the libraries its examples import (the `docs` group), without the dev
+# Zallery and the libraries its examples import (the `docs` group), without the dev
 # tools. notebook (>=7 bundles JupyterLab) provides the `jupyter notebook` CLI that
-# repo2docker launches; jupytext and ipykernel come with zallery.
+# repo2docker launches; jupytext and ipykernel come with Zallery.
 RUN uv sync --frozen --no-dev --group docs \
  && uv pip install notebook
 

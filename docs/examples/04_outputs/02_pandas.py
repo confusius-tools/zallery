@@ -3,7 +3,7 @@
 #
 # A DataFrame shows as the table a notebook displays, in both color schemes.
 #
-# pandas gives the table as HTML. zallery copies it to the page, and the site's
+# pandas gives the table as HTML. Zallery copies it to the page, and the site's
 # stylesheet gives it the look of a notebook table.
 
 # %% tags=["thumbnail"]

@@ -1,10 +1,10 @@
-# zallery Agent Guidelines
+# Zallery Agent Guidelines
 
 This file guides AI coding agents working in this repository.
 
-## What is zallery
+## What is Zallery
 
-zallery builds an example gallery for Zensical documentation sites: it runs
+Zallery builds an example gallery for Zensical documentation sites: it runs
 jupytext percent-format `.py` examples once in a Jupyter kernel and renders each as
 a Markdown page, with every matplotlib figure in a light and a dark variant. It was
 extracted from [ConfUSIus](https://github.com/confusius-tools/confusius), its first
@@ -22,7 +22,7 @@ just test          # run tests with coverage
 just pre-commit    # ruff check/format, ty, codespell, numpydoc-validation
 uv run ty check    # type check src and tests
 uv build           # build sdist and wheel
-just gallery       # build the docs example gallery with zallery itself
+just gallery       # build the docs example gallery with Zallery itself
 just docs          # gallery, then `zensical build --strict`
 just serve-docs    # gallery, then serve the docs locally
 ```
@@ -30,7 +30,7 @@ just serve-docs    # gallery, then serve the docs locally
 Run a single test: `uv run pytest tests/test_theme.py::test_name`.
 
 The docs site (`zensical.toml`, `docs/`) is small on purpose: the home page includes
-`README.md`, and `docs/examples/` is a gallery built by zallery itself. Each example
+`README.md`, and `docs/examples/` is a gallery built by Zallery itself. Each example
 there shows one feature; a new example also needs a `nav` entry in `zensical.toml`.
 `binder/Dockerfile` is the environment mybinder.org builds for the Binder badges
 of the example pages; it installs the `docs` group.
@@ -69,6 +69,9 @@ src/zallery/
 - Tests exercise the public API, with assertions that fail if the function returns
   garbage. Tests that start a kernel are marked `slow`.
 - Commit messages follow Commitizen: `<type>(<scope>): <summary>`.
+- In prose (README, docs, docstrings, comments), the package is Zallery. Write
+  `zallery` only where it is code: the command, module, PyPI name, paths and the
+  `[tool.zallery]` table.
 
 ## Known gotchas
 
@@ -80,7 +83,7 @@ src/zallery/
 - Kernel ports are picked below the OS ephemeral range with `cache_ports = False`;
   jupyter_client's default port selection races with outgoing connections on CI.
 - ipykernel 7.3 and later warns on every start that its TCP sockets are not
-  encrypted, unless its connection file holds CurveZMQ keys. zallery sets keys on
+  encrypted, unless its connection file holds CurveZMQ keys. Zallery sets keys on
   the kernel manager when the launched ipykernel's own spec
   (`ipykernel.kernelspec.get_kernel_dict`) says it reads them: jupyter_client's
   `transport_encryption` decides from the installed kernel spec instead, which can
@@ -96,7 +99,7 @@ src/zallery/
   written in the page) and blocks every fetch. Without its own `--user-data-dir`,
   a browser the user has open takes over the command and no picture is written.
 - In a kernel, plotly's default renderer sends its mime type alone, with no HTML or
-  text: zallery draws the figure itself. With `responsive: true`, a figure is as
+  text: Zallery draws the figure itself. With `responsive: true`, a figure is as
   high as its element, so the element gets the figure's height (525px by default,
   as plotly's notebook renderer does), or it collapses to 0 on the first redraw.
 - Tab cells are written as raw HTML in the markup of `pymdownx.tabbed`, not with the

@@ -3,7 +3,7 @@
 #
 # The smallest useful example: a title, a sentence, and one figure.
 #
-# zallery runs this script once and renders the figure twice, for the light and the
+# Zallery runs this script once and renders the figure twice, for the light and the
 # dark color scheme. Switch the site theme to see the other one.
 
 # %% tags=["thumbnail"]

@@ -1,5 +1,5 @@
 [project]
-site_name = "zallery"
+site_name = "Zallery"
 site_description = "Light-and-dark example galleries for Zensical docs, built from jupytext scripts."
 site_author = "ConfUSIus developers"
 copyright = "Copyright © 2026 The ConfUSIus developers"
@@ -70,7 +70,7 @@ accent = "custom"
 toggle.icon = "lucide/moon"
 toggle.name = "Switch to light mode"
 
-# What zallery's pages need: grids and buttons (attr_list, md_in_html), collapsed
+# What Zallery's pages need: grids and buttons (attr_list, md_in_html), collapsed
 # code cells (admonition, details), fenced code inside those (superfences).
 [project.markdown_extensions.attr_list]
 [project.markdown_extensions.md_in_html]

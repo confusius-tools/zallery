@@ -33,6 +33,6 @@ import pandas as pd
 pd.DataFrame({"planet": ["Mercury", "Venus", "Earth", "Mars"], "moons": [0, 0, 1, 2]})
 
 # %% [markdown]
-# zallery takes the picture with a Chromium, Chrome or Edge it finds on the machine,
+# Zallery takes the picture with a Chromium, Chrome or Edge it finds on the machine,
 # once for each color scheme. Without a browser, the build prints a warning and the
 # example keeps the default thumbnail.

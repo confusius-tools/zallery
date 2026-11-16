@@ -3,13 +3,13 @@
 [![License](https://img.shields.io/github/license/confusius-tools/zallery?style=flat-square&color=3ad9a4)](https://github.com/confusius-tools/zallery/blob/main/LICENSE)
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/confusius-tools/zallery/main?urlpath=lab/tree/docs/examples)
 
-# zallery
+# Zallery
 
-**zallery** builds an example gallery for [Zensical](https://zensical.org)
+**Zallery** builds an example gallery for [Zensical](https://zensical.org)
 documentation sites from plain Python scripts.
 
 Each example is a [jupytext](https://jupytext.readthedocs.io) percent-format `.py`
-file. zallery runs it once in a Jupyter kernel, renders it as a notebook-style
+file. Zallery runs it once in a Jupyter kernel, renders it as a notebook-style
 Markdown page with code, outputs, and `.py`/`.ipynb` downloads, and writes an index
 page with one card per example. Every matplotlib figure comes out twice, for the
 light and the dark color scheme, from that single run.
@@ -110,14 +110,14 @@ Examples live under `<examples>/<section>/<name>.py`.
   such as `hl_lines: 2 4-5`. Line 1 is the first line of the cell.
 - Tag a code cell with `annotate` to attach notes to its lines. End a line with a
   comment such as `# (1)!`, and write the notes as a numbered list in the Markdown
-  cell that follows. zallery writes that cell directly under the code, above the
+  cell that follows. Zallery writes that cell directly under the code, above the
   output, which is where Zensical reads the notes from.
 - A failing cell does not abort the build: its traceback is rendered on the page.
 
 ## Light and dark figures
 
 Every example runs once, under a light matplotlib style. Each figure is then
-re-rendered for dark mode without re-executing anything: zallery swaps the theme
+re-rendered for dark mode without re-executing anything: Zallery swaps the theme
 colors (figure background, axes background, black foreground) and the default
 diverging colormap (`coolwarm` to `berlin`) on the drawn artists, prints a second
 PNG, and restores the exact properties it changed. Both PNGs land on the page, and
@@ -197,7 +197,7 @@ renderer setup.
   plotly's `plotly_dark` template merged into the figure's own. Both drop the
   paper background, so the figure sits on the page. Colors set on the figure
   itself, not by its template, are the same in both schemes.
-- zallery copies plotly.js from the plotly package that made the figure next to
+- Zallery copies plotly.js from the plotly package that made the figure next to
   the page, so the site loads nothing from plotly's servers. The file weighs about
   5 MB; there is one per section that has plotly figures.
 - With [HTML thumbnails](#html-thumbnails) switched on, the plotly figure of a
@@ -216,10 +216,10 @@ html_thumbnail_css = ["docs/stylesheets/extra.css"]
 ```
 
 A `thumbnail` cell that shows no image then gives its first HTML output, or plotly
-figure, as the thumbnail. zallery pictures the top-left corner of the output with a headless
-browser, once for each color scheme.
+figure, as the thumbnail. Zallery pictures the top-left corner of the output
+with a headless browser, once for each color scheme.
 
-- The machine that builds the gallery needs a Chromium-family browser. zallery
+- The machine that builds the gallery needs a Chromium-family browser. Zallery
   uses the one named by the `ZALLERY_BROWSER` environment variable (a command or
   a path). Without that variable, it takes the first of `chromium`,
   `chromium-browser`, `google-chrome`, `google-chrome-stable`, `chrome`,
@@ -229,14 +229,14 @@ browser, once for each color scheme.
   default thumbnail.
 - `html_thumbnail_css` lists stylesheets of your site, so that the output looks as
   it does on its page. The theme's own stylesheet is not part of the picture;
-  zallery sets the `data-md-color-scheme` attribute and the
+  Zallery sets the `data-md-color-scheme` attribute and the
   `--md-default-fg-color` variables that site styles usually build on.
 - The picture runs the output's own scripts but loads nothing from the network: an
   output whose scripts need a file from the network comes out empty.
 
 ## Configuration
 
-zallery reads the `[tool.zallery]` table of the nearest `pyproject.toml` above the
+Zallery reads the `[tool.zallery]` table of the nearest `pyproject.toml` above the
 working directory; relative paths resolve against that file's directory. All keys
 are optional:
 
@@ -262,11 +262,11 @@ repository's
 is a working setup.
 
 A cached example is reused while its source, the Python version, the configuration,
-the `fingerprint` files, the hook module, and the zallery sources are all unchanged.
+the `fingerprint` files, the hook module, and the Zallery sources are all unchanged.
 
 ## Zensical integration
 
-zallery writes Markdown pages; the Zensical site provides the rest, in
+Zallery writes Markdown pages; the Zensical site provides the rest, in
 `zensical.toml` and a stylesheet:
 
 - Markdown extensions `attr_list`, `md_in_html`, `admonition`, `pymdownx.details`
@@ -281,7 +281,7 @@ zallery writes Markdown pages; the Zensical site provides the rest, in
 
 - Fallback thumbnails for examples without a `thumbnail` cell, at
   `<examples>/_assets/default_thumb.svg` and `<examples>/_assets/default_thumb_dark.svg`.
-- Optionally, styles for the classes zallery emits: `examples-cards` and
+- Optionally, styles for the classes Zallery emits: `examples-cards` and
   `examples-card-summary` on the index page, `gallery-output` and
   `gallery-rich-output` around cell outputs, `gallery-plotly` on plotly figures,
   `gallery-binder` on the Binder
@@ -291,12 +291,12 @@ zallery writes Markdown pages; the Zensical site provides the rest, in
   [stylesheet](https://github.com/confusius-tools/zallery/blob/main/docs/stylesheets/extra.css)
   are a working setup, with notebook-like pandas tables; the
   [ConfUSIus stylesheet](https://github.com/confusius-tools/confusius/blob/main/docs/stylesheets/extra.css)
-  also styles scikit-learn outputs. xarray views need no site styles: zallery
+  also styles scikit-learn outputs. xarray views need no site styles: Zallery
   adapts them to the color scheme itself.
 
 ## Relationship to ConfUSIus
 
-zallery is extracted from [ConfUSIus](https://github.com/confusius-tools/confusius),
+Zallery is extracted from [ConfUSIus](https://github.com/confusius-tools/confusius),
 where it builds the documentation's example gallery. It does not depend on
 ConfUSIus and makes no assumption about what the examples compute.
 
