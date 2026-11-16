@@ -16,6 +16,13 @@ RUN groupadd -g ${NB_UID} ${NB_USER} \
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
 
+# PyVista draws with VTK, which needs OpenGL; with no display and no GPU, that is
+# Mesa's software renderer through OSMesa. VTK would try X and EGL first.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends libosmesa6 \
+ && rm -rf /var/lib/apt/lists/*
+ENV VTK_DEFAULT_OPENGL_WINDOW=vtkOSOpenGLRenderWindow
+
 # Use the image's Python, which matches `.python-version`. If the two ever differ,
 # the build fails here instead of downloading another Python.
 ENV UV_PYTHON_DOWNLOADS=never
