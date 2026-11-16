@@ -159,6 +159,27 @@ def test_an_object_of_a_subclass_is_rethemed_too(shell: InteractiveShell) -> Non
     assert "color:white" in output.metadata["text/html"]["dark"]
 
 
+@pytest.mark.parametrize("gold_first", [False, True], ids=["card-first", "gold-first"])
+def test_the_integration_of_the_most_specific_type_wins(
+    shell: InteractiveShell, gold_first: bool
+) -> None:
+    class Golds(Cards):
+        type = f"{Gold.__module__}.{Gold.__qualname__}"
+
+        def retheme(self, obj, scheme):
+            look = super().retheme(obj, scheme)
+            if look is not None:
+                obj.color = "gold"
+            return look
+
+    for cls in [Golds, Cards] if gold_first else [Cards, Golds]:
+        cls()._install(shell)
+    (gold,) = _shown(Gold())
+    (card,) = _shown(Card())
+    assert "color:gold" in gold.metadata["text/html"]["dark"]
+    assert "color:white" in card.metadata["text/html"]["dark"]
+
+
 def test_an_object_with_one_look_has_no_dark_variant(shell: InteractiveShell) -> None:
     class Plain(Cards):
         def retheme(self, obj, scheme):
@@ -177,10 +198,15 @@ def test_a_retheme_that_raises_leaves_the_light_output_and_the_object(
         def retheme(self, obj, scheme):
             if scheme == "dark":
                 raise RuntimeError("no dark look")
+            stack = ExitStack()
+            stack.callback(setattr, obj, "color", obj.color)
+            obj.color = "navy"
+            return stack
 
     Broken()._install(shell)
     card = Card()
     outputs = _shown(card)
+    # IPython shows the object itself once the integration fails.
     assert any("color:black" in o.data.get("text/html", "") for o in outputs)
     assert card.color == "black"
 

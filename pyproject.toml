@@ -101,7 +101,7 @@ line-length = 88
 "tests/**" = ["RUF012"]
 
 [tool.ty.src]
-include = ["src", "tests"]
+include = ["src", "tests", "tools"]
 
 [tool.pytest.ini_options]
 minversion = "8.0"

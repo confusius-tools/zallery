@@ -64,3 +64,26 @@ def test_an_unknown_theme_names_the_attribute() -> None:
             Bad().retheme(plotter, "dark")
     finally:
         plotter.close()
+
+
+@needs_pyvista
+def test_a_subclass_may_name_another_dark_theme() -> None:
+    import pyvista
+
+    class ParaView(PyVista):
+        themes = ("DocumentTheme", "ParaViewTheme")
+
+    plotter = pyvista.Plotter(off_screen=True)
+    light = plotter.renderers[0].background_color.float_rgb
+    try:
+        look = ParaView().retheme(plotter, "dark")
+        assert look is not None
+        with look:
+            assert (
+                plotter.renderers[0].background_color.float_rgb
+                == pyvista.themes.ParaViewTheme().background.float_rgb
+                != light
+            )
+        assert plotter.renderers[0].background_color.float_rgb == light
+    finally:
+        plotter.close()

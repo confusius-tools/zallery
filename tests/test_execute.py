@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import base64
 import importlib.util
+import io
 import socket
 import sys
 from pathlib import Path
 
 import pytest
+from matplotlib.image import imread
 
 from zallery import execute
 from zallery.execute import execute_example, find_kernel_ports
@@ -251,3 +254,41 @@ def test_execute_keeps_a_pyvista_picture_whose_dark_look_fails(tmp_path: Path) -
     # IPython reports what a callback raises: the cell shows the traceback.
     reported = "".join("".join(o.get("traceback", [])) for o in outputs)
     assert "Bad.themes" in reported
+
+
+@pytest.mark.slow
+@pytest.mark.skipif(
+    importlib.util.find_spec("pyvista") is None, reason="needs pyvista (the docs group)"
+)
+def test_execute_takes_a_pyvista_picture_again_for_a_light_look(tmp_path: Path) -> None:
+    """A light look that changes a plotter replaces the picture `show()` took."""
+    (tmp_path / "t12_pyvista.py").write_text(
+        "from contextlib import ExitStack\n"
+        "from zallery.pyvista import PyVista\n"
+        "class Pure(PyVista):\n"
+        "    def retheme(self, plotter, scheme):\n"
+        "        renderer, restore = plotter.renderer, ExitStack()\n"
+        "        color = renderer.background_color\n"
+        "        restore.callback(setattr, renderer, 'background_color', color)\n"
+        "        renderer.background_color = 'red' if scheme == 'light' else 'blue'\n"
+        "        return restore\n"
+    )
+    src = tmp_path / "ex.py"
+    src.write_text(
+        "# %%\nimport pyvista as pv\n\n"
+        "plotter = pv.Plotter()\n_ = plotter.add_mesh(pv.Sphere())\nplotter.show()\n"
+    )
+
+    notebook, _ = execute_example(
+        src, timeout=120, integrations=["t12_pyvista:Pure"], root=tmp_path
+    )
+
+    (picture,) = [
+        o for o in notebook.cells[0].outputs if "image/png" in o.get("data", {})
+    ]
+    for png, color in [
+        (picture.data["image/png"], (1, 0, 0)),
+        (picture.metadata["image/png"]["dark"], (0, 0, 1)),
+    ]:
+        corner = imread(io.BytesIO(base64.b64decode(png)))[0, 0, :3]
+        assert tuple(corner) == pytest.approx(color, abs=0.01)
