@@ -25,16 +25,21 @@ for angle in range(0, 360, 10):
 pl.show()
 
 # %% [markdown]
-# A plotter without a recording shows as a scene that you can rotate and zoom, when
-# the `trame-pyvista` package is installed: PyVista exports the scene, and your
-# browser draws it, with no server. Without the package, the plotter shows its last
-# picture. That picture is the thumbnail of the example in both cases.
+# The animation is the same in both color schemes: its frames are recorded as the
+# example runs.
+#
+# A plotter without a recording shows its picture, and Zallery takes that picture
+# twice: as the example draws it, under PyVista's default theme, and again with
+# the colors of PyVista's dark theme, for the dark color scheme. Switch the scheme
+# to see it.
+#
+# With the `trame-pyvista` package installed, the picture shares a set of tabs
+# with an interactive scene, as in the PyVista documentation. PyVista exports the
+# scene and your browser draws it, with no server.
 
 # %% tags=["thumbnail"]
+hills = pv.examples.load_random_hills()
 pl = pv.Plotter()
-pl.add_mesh(pv.Sphere(), show_edges=True, color="tan")
+pl.add_mesh(hills, scalars="Elevation", scalar_bar_args={"title": "Elevation"})
+pl.show_bounds()
 pl.show()
-
-# %% [markdown]
-# The animation and the scene are the same in both color schemes, on PyVista's own
-# background.
