@@ -6,6 +6,7 @@ displayed matplotlib figure is rendered for both themes from that single run
 pipeline: discover, cache, execute, render, index.
 """
 
+from zallery.integration import Integration
 from zallery.pipeline import build_gallery
 
-__all__ = ["build_gallery"]
+__all__ = ["Integration", "build_gallery"]
