@@ -11,8 +11,8 @@ documentation sites from plain Python scripts.
 Each example is a [jupytext](https://jupytext.readthedocs.io) percent-format `.py`
 file. Zallery runs it once in a Jupyter kernel, renders it as a notebook-style
 Markdown page with code, outputs, and `.py`/`.ipynb` downloads, and writes an index
-page with one card per example. Every matplotlib figure comes out twice, for the
-light and the dark color scheme, from that single run.
+page with one card per example. Every figure comes out twice, for the light and
+the dark color scheme, from that single run.
 
 ## Installation
 
@@ -136,56 +136,161 @@ What this means when writing an example:
   data colors included. This cannot work at a finer grain, since one figure can
   hold both a plot on black with white text and a regular plot.
 - Do not branch on the theme in the example: there is only one run. Pick colormaps
-  that read well on both backgrounds, or swap them with a hook (below).
+  that read well on both backgrounds, or pair them in `cmaps` (below).
 - Images not drawn by matplotlib (PIL images, screenshots) are shown unchanged in
   both themes.
 
-To give each color scheme its own default colors, set a palette for each one in
-`pyproject.toml`:
+These colors and colormaps are the data of a class,
+`zallery.matplotlib.Matplotlib`. A pair is `(light, dark)`; a mapping is
+`{light: dark}`:
 
-```toml
-[tool.zallery.light]
-matplotlib.palette = "Dark2"
+| Attribute | Default | Meaning |
+|---|---|---|
+| `background` | `("#fefefe", "#0b0c0f")` | Figure background. |
+| `axes_background` | `("#fdfdfd", "#0b0c0f")` | Axes background. |
+| `foreground` | `("black", "#e2e4e9")` | Text, ticks, spines and default lines. |
+| `palette` | `None` | The default color cycle of each scheme. |
+| `cmaps` | `{"coolwarm": "berlin"}` | Colormaps to switch. |
+| `colors` | `{}` | Other exact colors to switch. |
+| `rcparams` | dpi 160, savefig dpi 200, figsize `(7, 4)` | Other `rcParams` the examples run under. |
 
-[tool.zallery.dark]
-matplotlib.palette = "Set2"
-```
+The default colors are close to the page colors of a default Zensical site, so
+that a figure sits on the page. The light backgrounds are a hair off white: pure
+white stays a color of yours, which the swap keeps.
 
-A palette is the name of a listed matplotlib colormap (`"Set2"`, `"tab10"`) or a
-list of colors. Examples run with the light palette as matplotlib's color cycle. On
-the dark page, each color of the light palette is replaced by the color at the same
-position of the dark palette, so the dark palette needs at least as many colors.
-
-- Without a light palette, the light page uses matplotlib's default cycle. Without
-  a dark palette, both pages show the light one.
-- Palette colors are also replaced in scatter plots, filled areas and other
-  collections, unlike the theme colors above. Colormapped data keeps its colormap.
-- Only exact palette colors are replaced. A color derived from one (lightened, or
-  desaturated as seaborn does for bars) stays as drawn. A color you set yourself
-  that equals a palette color is replaced too.
-
-When the built-in swap is not enough, point the `hook` key at a module of the
-project that defines `gallery_retheme(fig, theme)`. It runs in the kernel after a
-theme swap and returns a context manager that restores what it changed, also when
-printing fails. It is called with `"dark"` before the dark rendering, and with
-`"light"` when a figure drawn on black is first converted to light. There is no
-call to undo: the returned context manager does that.
+To change the look, subclass `Matplotlib` in a module of your project:
 
 ```python
-from zallery.theme import swap_cmaps
+# tools/gallery.py
+from zallery.matplotlib import Matplotlib
 
-SWAPS = {"inferno_r": "inferno"}
 
-
-def gallery_retheme(fig, theme):
-    """Draw with `inferno_r` on the light page, `inferno` on the dark page."""
-    mapping = SWAPS if theme == "dark" else {dark: light for light, dark in SWAPS.items()}
-    return swap_cmaps(fig.findobj(), mapping)
+class Figures(Matplotlib):
+    background = ("#f8f9fb", "#090c10")
+    palette = ("Dark2", "Set2")
+    cmaps = {"coolwarm": "berlin", "inferno_r": "inferno"}
+    colors = {"#a8323e": "#ff6b6b"}
 ```
 
-`zallery.theme.swap_cmaps` and `zallery.theme.swap_colors` take the figure's
-artists and a mapping, and each returns such a context manager; combine several
-with `contextlib.ExitStack`.
+and name the class in `pyproject.toml`. It takes the place of `Matplotlib`:
+
+```toml
+[tool.zallery]
+integrations = ["tools.gallery:Figures"]
+```
+
+- `palette` gives each color scheme its own default colors. A palette is the name
+  of a listed matplotlib colormap (`"Set2"`, `"tab10"`) or a list of colors.
+  Examples run with the light palette as matplotlib's color cycle. On the dark
+  page, each color of the light palette is replaced by the color at the same
+  position of the dark palette, so the dark palette needs at least as many colors.
+  With `None` for the light palette, the light page uses matplotlib's default
+  cycle; with `None` for the dark one, both pages show the light one.
+- `cmaps` pairs colormaps by name: a figure drawn with `inferno_r` shows `inferno`
+  on the dark page.
+- `colors` pairs other colors, such as those of a brand.
+- Palette colors and `colors` are also replaced in scatter plots, filled areas and
+  other collections, unlike the theme colors above. Colormapped data keeps its
+  colormap.
+- Only exact colors are replaced. A color derived from one (lightened, or
+  desaturated as seaborn does for bars) stays as drawn. A color you set yourself
+  that equals a palette color is replaced too.
+- `foreground` is matched, not set: its light value must be the color matplotlib
+  draws text and axes with. To change it, set the matching keys in `rcparams` too.
+
+## Integrations
+
+What a display library needs, and what changes on its outputs between the two
+color schemes, is said by an *integration* class. Zallery ships four:
+
+| Class | For |
+|---|---|
+| `zallery.matplotlib:Matplotlib` | [matplotlib figures](#light-and-dark-figures) |
+| `zallery.plotly:Plotly` | [plotly figures](#plotly-figures) |
+| `zallery.pyvista:PyVista` | [PyVista plots](#pyvista-plots) |
+| `zallery.xarray:Xarray` | HTML views of xarray objects |
+
+Subclass one to change it, or subclass `zallery.Integration` for a display Zallery
+does not know. A class has one attribute and three methods, all optional:
+
+- `type` is the dotted name of the class whose objects it handles, subclasses
+  included, such as `"matplotlib.figure.Figure"`.
+- `setup()` runs in the kernel, once, before the first cell of the example. It
+  prepares the library for the light scheme.
+- `retheme(obj, scheme)` runs in the kernel. Zallery calls it for `"light"`, then
+  for `"dark"`, each time just before it takes the rendering for that scheme. The
+  object arrives both times as the example left it. The method changes the object
+  in place and returns a context manager that restores every change, also when the
+  rendering fails. It returns `None` when it changed nothing.
+- `html(html)` runs when the page is written, on each HTML output, and returns the
+  HTML to write. It is for a display whose two looks are one HTML driven by CSS:
+  `Xarray` writes the values of xarray's CSS variables for each scheme there (its
+  `variables` attribute).
+
+List your classes in `pyproject.toml`, as `"module:Class"` names importable from
+the directory of that file. Keep the module out of the directory Zensical
+publishes (`docs/`), or the site gets a copy of it:
+
+```toml
+[tool.zallery]
+integrations = ["tools.gallery:Figures", "tools.gallery:Badges"]
+```
+
+- A class that subclasses one of Zallery's takes its place.
+- Any other class is added.
+
+When data is not enough, override `retheme`. `super().retheme(...)` gives the
+context manager of the stock class, or `None`:
+
+```python
+from matplotlib.lines import Line2D
+from zallery.matplotlib import Matplotlib
+
+
+class Figures(Matplotlib):
+    def retheme(self, fig, scheme):
+        """Draw lines thicker on the dark page."""
+        restore = super().retheme(fig, scheme)
+        if scheme == "dark" and restore is not None:
+            for line in fig.findobj(Line2D):
+                restore.callback(line.set_linewidth, line.get_linewidth())
+                line.set_linewidth(1.5 * line.get_linewidth())
+        return restore
+```
+
+`zallery.matplotlib.swap_colors` and `zallery.matplotlib.swap_cmaps` take the
+figure's artists and a mapping, and each returns such a context manager; combine
+several with `contextlib.ExitStack`.
+
+For a display Zallery does not know, a class with `type` and `retheme` is enough:
+
+```python
+from contextlib import ExitStack
+
+from zallery import Integration
+
+
+class Badges(Integration):
+    type = "mylib.Badge"
+
+    def retheme(self, badge, scheme):
+        if scheme == "light":
+            return None
+        restore = ExitStack()
+        restore.callback(setattr, badge, "color", badge.color)
+        badge.color = "white"
+        return restore
+```
+
+- Zallery shows each object of that class as a notebook does (its `_repr_html_`,
+  `_repr_png_` and so on), once for each scheme. The page keeps both and shows the
+  one of the reader's color scheme.
+- A dark variant is kept for PNG and HTML outputs.
+- An HTML output with a dark variant is on the page twice, one of them hidden by a
+  style rule. This fits static HTML. An output whose HTML runs scripts runs them
+  twice.
+- The gallery of this repository has
+  [such a class](https://github.com/confusius-tools/zallery/blob/main/tools/gallery.py).
 
 ## Plotly figures
 
@@ -197,6 +302,9 @@ renderer setup.
   plotly's `plotly_dark` template merged into the figure's own. Both drop the
   paper background, so the figure sits on the page. Colors set on the figure
   itself, not by its template, are the same in both schemes.
+- The templates are the `template` attribute of `zallery.plotly.Plotly`,
+  `(None, "plotly_dark")`: the name of a plotly template for each scheme, or `None`
+  to merge none. Subclass it to change them (see [Integrations](#integrations)).
 - Zallery copies plotly.js from the plotly package that made the figure next to
   the page, so the site loads nothing from plotly's servers. The file weighs about
   5 MB; there is one per section that has plotly figures.
@@ -219,6 +327,10 @@ value. A plotter is closed after the cell that shows it.
   background, and the black of texts, edges, outlines and axes, which becomes
   white. A color you set yourself to one of those is swapped too; other colors and
   colormaps stay. A plot you draw under another theme stays as it is.
+- The two themes are the `themes` attribute of `zallery.pyvista.PyVista`,
+  `("DocumentTheme", "DarkTheme")`: names of classes of `pyvista.themes`. The
+  environment variables are its `environment` attribute. Subclass it to change them
+  (see [Integrations](#integrations)).
 - A plotter that records a GIF, with `open_gif` and `write_frame`, shows the
   animation instead of its last picture. Recording needs the `imageio` package. The
   animation is the same in both color schemes: its frames are recorded as the
@@ -260,7 +372,13 @@ with a headless browser, once for each color scheme.
 - `html_thumbnail_css` lists stylesheets of your site, so that the output looks as
   it does on its page. The theme's own stylesheet is not part of the picture;
   Zallery sets the `data-md-color-scheme` attribute and the
-  `--md-default-fg-color` variables that site styles usually build on.
+  `--md-default-bg-color` and `--md-default-fg-color` variables that site styles
+  usually build on.
+- The page of the picture has the colors of a default Zensical page. A site with
+  its own page colors sets `--md-default-bg-color` and `--md-default-fg-color` for
+  each scheme in one of those stylesheets, as it does for its pages.
+- An output with a dark variant (see [Integrations](#integrations)) gives each
+  picture its own HTML.
 - The picture runs the output's own scripts but loads nothing from the network: an
   output whose scripts need a file from the network comes out empty.
 
@@ -276,11 +394,10 @@ are optional:
 | `built` | `<examples>/_built` | Where rendered pages and images go. |
 | `cache` | `.gallery-cache` | Execution/render cache. |
 | `binder_repo` | unset | `owner/repo` for the Binder launch badges. |
-| `hook` | unset | Dotted name of a module, importable from the project root, defining `gallery_retheme(fig, theme)`. |
+| `integrations` | `[]` | Integration classes of the project, as `"module:Class"` names: see [Integrations](#integrations). |
 | `fingerprint` | `["uv.lock"]` | Files whose change invalidates the cache. |
 | `html_thumbnails` | `false` | Whether an HTML output may be an example's thumbnail: see [HTML thumbnails](#html-thumbnails). |
 | `html_thumbnail_css` | `[]` | Stylesheets of the site applied to HTML thumbnails. |
-| `light`, `dark` | none | Tables of presets for each color scheme. Their key so far is `matplotlib.palette`: see [Light and dark figures](#light-and-dark-figures). |
 
 With `binder_repo` set, each example page gets a Binder badge that opens its script
 on [mybinder.org](https://mybinder.org) as a notebook. The git ref stamped into
@@ -292,7 +409,8 @@ repository's
 is a working setup.
 
 A cached example is reused while its source, the Python version, the configuration,
-the `fingerprint` files, the hook module, and the Zallery sources are all unchanged.
+the `fingerprint` files, the modules of the integration classes of the project,
+and the Zallery sources are all unchanged.
 
 ## Zensical integration
 
@@ -317,8 +435,9 @@ Zallery writes Markdown pages; the Zensical site provides the rest, in
   example's own thumbnail, so that a broken example stands out on the index page.
 - Optionally, styles for the classes Zallery emits: `examples-cards` and
   `examples-card-summary` on the index page, `gallery-output` and
-  `gallery-rich-output` around cell outputs, `gallery-plotly` on plotly figures,
-  `gallery-scene` on PyVista scenes,
+  `gallery-rich-output` around cell outputs, with `gallery-html-light` or
+  `gallery-html-dark` on an HTML output that has a variant for each scheme,
+  `gallery-plotly` on plotly figures, `gallery-scene` on PyVista scenes,
   `gallery-binder` on the Binder
   badge. This repository's
   [`zensical.toml`](https://github.com/confusius-tools/zallery/blob/main/zensical.toml)

@@ -1,5 +1,5 @@
 /* Page backgrounds match the figure backgrounds this gallery renders with
-   (`background` of `Figures` in `docs/gallery.py`), so figures blend into the page. */
+   (`background` of `Figures` in `tools/gallery.py`), so figures blend into the page. */
 
 /* Light mode: red accent on soft gray background. */
 [data-md-color-scheme="default"] {

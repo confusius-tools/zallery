@@ -4,14 +4,23 @@
 # Give each color scheme its own default colors: strong ones on the light page,
 # softer ones on the dark page.
 #
-# This gallery sets both palettes in its `pyproject.toml`:
+# The look of matplotlib figures is the data of a class, `Matplotlib`. This
+# gallery subclasses it in `tools/gallery.py` and sets both palettes, the light one
+# first:
+#
+# ```python
+# from zallery.matplotlib import Matplotlib
+#
+#
+# class Figures(Matplotlib):
+#     palette = ("Dark2", "Set2")
+# ```
+#
+# Its `pyproject.toml` names the class, which takes the place of `Matplotlib`:
 #
 # ```toml
-# [tool.zallery.light]
-# matplotlib.palette = "Dark2"
-#
-# [tool.zallery.dark]
-# matplotlib.palette = "Set2"
+# [tool.zallery]
+# integrations = ["tools.gallery:Figures"]
 # ```
 #
 # A palette is the name of a listed matplotlib colormap, or a list of colors. The

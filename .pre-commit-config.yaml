@@ -3,6 +3,7 @@ files: |
         src/.*/.*py
         | tests/.*py
         | docs/.*py
+        | tools/.*py
     )$
 
 repos:

@@ -34,6 +34,7 @@ nav = [
             { "An HTML output as the thumbnail" = "examples/_built/outputs/html_thumbnail.md" },
             { "Plotly figures" = "examples/_built/outputs/plotly.md" },
             { "PyVista plots" = "examples/_built/outputs/pyvista.md" },
+            { "An integration of your own" = "examples/_built/outputs/integration.md" },
         ]},
     ]},
 ]
