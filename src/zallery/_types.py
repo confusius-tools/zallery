@@ -13,10 +13,11 @@ The payload is the base64 text of a `.vtksz` file, next to the still picture of 
 plotter in the same output (see `zallery.pyvista.PyVista`).
 """
 
-HtmlThumbnail = Callable[[str, Path, Path], bool]
+HtmlThumbnail = Callable[[str, str, Path, Path], bool]
 """Writes the thumbnails of an HTML output.
 
-Called with the HTML and the paths of the light and the dark PNG; returns
+Called with the HTML, its variant for the dark color scheme (the same HTML for an
+output that has one look), and the paths of the light and the dark PNG; returns
 whether it wrote them (see `zallery.thumbnail.screenshot_html`).
 """
 

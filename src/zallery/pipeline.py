@@ -199,7 +199,8 @@ def _build_one(
         always restored from cache if present.
     integrations : Sequence[Integration], default: ()
         The integrations in effect. Their class names are passed to
-        `zallery.execute.execute_example`.
+        `zallery.execute.execute_example`, and they are passed to
+        `zallery.render.render_notebook`.
     root : pathlib.Path, optional
         Directory the kernel needs on `sys.path` to import the classes of the
         project.
@@ -300,6 +301,7 @@ def _build_one(
         runtime_seconds=seconds,
         binder_url=binder_url,
         html_thumbnail=html_thumbnail,
+        integrations=integrations,
     )
 
     shutil.copyfile(spec.source, scratch / f"{base_name}.py")

@@ -7,6 +7,7 @@ import json
 import re
 import shutil
 import struct
+from collections.abc import Sequence
 from html import escape
 from pathlib import Path
 from typing import Any
@@ -14,6 +15,8 @@ from typing import Any
 import nbformat
 
 from zallery._types import SCENE_MIME, HtmlThumbnail
+from zallery.integration import Integration
+from zallery.plotly import MIME as _PLOTLY_MIME
 
 BINDER_BADGE = (
     "[![Launch in Binder](https://mybinder.org/badge_logo.svg)"
@@ -43,8 +46,14 @@ _SCENE_STYLE = (
 """Rule showing, of the light and the dark scene of a pyvista plot, the one of the
 color scheme. It comes with the page: a site needs no style of its own for it."""
 
-_PLOTLY_MIME = "application/vnd.plotly.v1+json"
-"""Mime type of a plotly figure, which plotly's default renderer in a kernel sends."""
+_HTML_STYLE = (
+    "<style>.gallery-html-dark,"
+    '[data-md-color-scheme="slate"] .gallery-html-light{display:none}'
+    '[data-md-color-scheme="slate"] .gallery-html-dark{display:block}</style>\n'
+)
+"""Rule showing, of the light and the dark variant of an HTML output, the one of
+the reader's color scheme. Both are in the page: this fits static HTML. An output
+whose HTML runs scripts runs them twice."""
 
 _PLOTLY_SCRIPT = """\
 (function () {
@@ -52,9 +61,10 @@ _PLOTLY_SCRIPT = """\
   var figure = JSON.parse(document.getElementById("%(id)s-figure").textContent);
   var source = "%(source)s";  // As written: the site may prefix the src with a path.
   function draw() {
-    var scheme = document.body.getAttribute("data-md-color-scheme");
-    var layout = figure.layouts[scheme === "slate" ? "slate" : "default"];
-    Plotly.react(element, figure.data, layout, figure.config);
+    var dark = document.body.getAttribute("data-md-color-scheme") === "slate";
+    var layout = figure.layouts[dark ? "slate" : "default"];
+    var data = dark && figure.dark_data || figure.data;
+    Plotly.react(element, data, layout, figure.config);
   }
   function start() {
     draw();
@@ -282,7 +292,7 @@ def _image_data(output: dict[str, object], mime: str = "image/png") -> str | Non
     return None
 
 
-def _dark_data(output: dict[str, object], mime: str = "image/png") -> str | None:
+def _dark(output: dict[str, object], mime: str) -> object:
     """Return the dark payload an integration stored for one mime type, if any."""
     metadata = output.get("metadata")
     if not isinstance(metadata, dict):
@@ -290,7 +300,12 @@ def _dark_data(output: dict[str, object], mime: str = "image/png") -> str | None
     mime_metadata = metadata.get(mime)
     if not isinstance(mime_metadata, dict):
         return None
-    dark = mime_metadata.get("dark")
+    return mime_metadata.get("dark")
+
+
+def _dark_data(output: dict[str, object], mime: str = "image/png") -> str | None:
+    """Return the dark payload of a mime type whose payload is text, if any."""
+    dark = _dark(output, mime)
     return dark if isinstance(dark, str) else None
 
 
@@ -304,9 +319,25 @@ def _image_tag(*, src: str, alt: str) -> str:
     return f'<img src="{src}" alt="{alt}">'
 
 
-def _html_block(html: str) -> str:
-    """Return a raw HTML block for Markdown output."""
-    return '<div class="gallery-rich-output">' + html.rstrip() + "</div>\n"
+def _html_block(html: str, scheme: str | None = None) -> str:
+    """Return a raw HTML block for Markdown output.
+
+    Parameters
+    ----------
+    html : str
+        The HTML of an output.
+    scheme : str, optional
+        `"light"` or `"dark"`, for the variant of an output that has both: the
+        block shows under that color scheme only (see `_HTML_STYLE`). If not
+        provided, the block shows under both.
+
+    Returns
+    -------
+    str
+        The block.
+    """
+    only = f" gallery-html-{scheme}" if scheme is not None else ""
+    return f'<div class="gallery-rich-output{only}">' + html.rstrip() + "</div>\n"
 
 
 def _write_plotly_js(out_dir: Path) -> str:
@@ -368,17 +399,17 @@ def _plotly_block(
     *,
     load: bool,
     thumbnail: bool = False,
+    dark: dict[str, Any] | None = None,
 ) -> str:
     """Return HTML drawing a plotly figure in the color scheme of the page.
 
-    The light drawing is the figure as made. The dark one merges plotly's dark
-    template into the figure's own. Both drop the paper background, so the figure
-    sits on the page's.
+    The renderer changes nothing in the figures: the look of each scheme is what
+    the kernel gave them (see `zallery.plotly`).
 
     Parameters
     ----------
     figure : dict
-        The figure, as the plotly mime type carries it.
+        The figure of the light scheme, as the plotly mime type carries it.
     element_id : str
         Id of the element the figure is drawn in, unique in the page.
     source : str
@@ -390,21 +421,27 @@ def _plotly_block(
         Whether to draw the figure for a thumbnail picture instead: at the size of
         the browser window, which it fills, with plotly.js written in the page,
         since the browser loads nothing.
+    dark : dict, optional
+        The figure of the dark scheme. If not provided, the figure is drawn as it
+        is under both schemes.
 
     Returns
     -------
     str
         The HTML: the element, the figure as JSON, and the script drawing it.
     """
-    # Imported here, for galleries with no plotly figure.
-    from plotly.io import templates
-    from plotly.offline import get_plotlyjs
-
     layout = figure.get("layout") or {}
+    dark_layout = layout if dark is None else dark.get("layout") or {}
     own = layout.get("template") or {}
     if thumbnail:
+        # Imported here, for galleries with no plotly figure.
+        from plotly.offline import get_plotlyjs
+
         loader = f"<script>{get_plotlyjs()}</script>\n"
-        layout = {k: v for k, v in layout.items() if k not in ("width", "height")}
+        layout, dark_layout = (
+            {k: v for k, v in each.items() if k not in ("width", "height")}
+            for each in (layout, dark_layout)
+        )
         style = "position: fixed; inset: 0"
     else:
         loader = f'<script src="{source}"></script>\n' if load else ""
@@ -413,19 +450,9 @@ def _plotly_block(
         # renderer.
         height = layout.get("height") or (own.get("layout") or {}).get("height") or 525
         style = f"height: {height}px"
-    clear = {"layout": {"paper_bgcolor": "rgba(0,0,0,0)"}}
     page = {
         "data": figure.get("data") or [],
-        "layouts": {
-            scheme: {
-                **layout,
-                "template": templates.merge_templates(*parts).to_plotly_json(),
-            }
-            for scheme, parts in (
-                ("default", (own, clear)),
-                ("slate", (own, "plotly_dark", clear)),
-            )
-        },
+        "layouts": {"default": layout, "slate": dark_layout},
         "config": {
             "responsive": True,
             **(figure.get("config") or {}),
@@ -433,6 +460,10 @@ def _plotly_block(
             **({"displayModeBar": False} if thumbnail else {}),
         },
     }
+    dark_data = [] if dark is None else dark.get("data") or []
+    if dark is not None and dark_data != page["data"]:
+        # Traces that differ between the schemes; equal ones are held once.
+        page["dark_data"] = dark_data
     # `<` escaped, so that no string of the figure can close the script element.
     data = json.dumps(page, separators=(",", ":")).replace("<", "\\u003c")
     script = _PLOTLY_SCRIPT % {"id": element_id, "source": source}
@@ -495,71 +526,33 @@ def _flush_text_outputs(parts: list[str], pending: list[str]) -> None:
 def _normalize_html_output(html: str) -> str:
     """Normalize rich HTML reprs for static docs rendering.
 
-    In particular, xarray's notebook HTML repr includes a plain-text fallback and uses
-    theme selectors that do not match Zensical's `data-md-color-scheme` attribute.
+    A table that `rich` drew with box characters gets a class, for the site styles
+    to keep its lines joined.
     """
     if "font-family:Menlo" in html and any(corner in html for corner in "┏┌╔╭"):
         html = html.replace("<pre ", '<pre class="gallery-rich-table" ', 1)
-    if "xr-wrap" in html:
-        html = re.sub(
-            r"<pre class=['\"]xr-text-repr-fallback['\"]>.*?</pre>",
-            "",
-            html,
-            flags=re.DOTALL,
-        )
-        html = html.replace(
-            "<div class='xr-wrap' style='display:none'>", "<div class='xr-wrap'>"
-        )
-        html = html.replace(
-            '<div class="xr-wrap" style="display:none">', '<div class="xr-wrap">'
-        )
-        html += (
-            "\n<style>"
-            ".xr-array-preview,.xr-array-preview span,.xr-preview,.xr-var-preview,.xr-var-dtype,.xr-var-dims,.xr-var-name,.xr-obj-type,.xr-obj-name{color:var(--xr-font-color0)!important;}"
-            ".gallery-rich-output{overflow-x:auto;}"
-            ".gallery-rich-output .xr-var-list,.gallery-rich-output .xr-dim-list,.gallery-rich-output .xr-attrs{padding-left:0!important;margin:0!important;list-style:none!important;}"
-            # Zensical's `.md-typeset ul li` rule adds margin-left:1.25em to <li>
-            # elements, including those inside .xr-dim-list.
-            ".gallery-rich-output .xr-dim-list li{margin-left:0!important;}"
-            # MkDocs Material's `.md-typeset ul:not([hidden])` has higher specificity
-            # than xarray's `.xr-sections` and forces `display:flow-root`, collapsing
-            # the grid. Force it back so each coordinate row stays on one line.
-            ".gallery-rich-output .xr-sections{display:grid!important;}"
-            # Same Material rule also clobbers `.xr-var-list` (another <ul>).
-            ".gallery-rich-output .xr-var-list,.gallery-rich-output .xr-var-item{display:contents!important;}"
-            ".gallery-rich-output .xr-var-name,.gallery-rich-output .xr-var-dims,.gallery-rich-output .xr-var-dtype,.gallery-rich-output .xr-var-preview{margin:0!important;}"
-            # Dask's chunk SVG labels can sit near element boundaries; forcing
-            # overflow visible prevents edge labels (e.g., diagonal chunk labels)
-            # from being clipped in docs layout containers.
-            ".gallery-rich-output .xr-array-data table,.gallery-rich-output .xr-array-data td,.gallery-rich-output .xr-array-data svg{overflow:visible!important;}"
-            ".gallery-rich-output .xr-array-data svg text,.gallery-rich-output .xr-array-data svg tspan,.gallery-rich-output .xr-array-preview svg text,.gallery-rich-output .xr-array-preview svg tspan,.gallery-rich-output .xr-preview svg text,.gallery-rich-output .xr-preview svg tspan{fill:var(--xr-font-color0)!important;}"
-            ".gallery-rich-output .xr-array-data svg{color:var(--xr-font-color0)!important;}"
-            # Dask injects inline `stroke: rgb(0,0,0)` on the root SVG; in dark
-            # mode we override stroke/text color explicitly to keep labels legible.
-            "[data-md-color-scheme='slate'] .gallery-rich-output .xr-array-data svg{stroke:rgba(255,255,255,0.5)!important;}"
-            "[data-md-color-scheme='slate'] .gallery-rich-output .xr-array-data svg text,[data-md-color-scheme='slate'] .gallery-rich-output .xr-array-data svg tspan{fill:rgba(255,255,255,0.92)!important;stroke:none!important;}"
-            "[data-md-color-scheme='default'] .xr-wrap{"
-            "--xr-font-color0: rgba(0,0,0,1);"
-            "--xr-font-color2: rgba(0,0,0,0.62);"
-            "--xr-font-color3: rgba(0,0,0,0.42);"
-            "--xr-border-color: var(--md-default-bg-color--lightest);"
-            "--xr-disabled-color: rgba(0,0,0,0.35);"
-            "--xr-background-color: #fff;"
-            "--xr-background-color-row-even: #f8f9fb;"
-            "--xr-background-color-row-odd: #edf0f5;"
-            "}"
-            "[data-md-color-scheme='slate'] .xr-wrap{"
-            "--xr-font-color0: rgba(255,255,255,0.95);"
-            "--xr-font-color2: rgba(255,255,255,0.68);"
-            "--xr-font-color3: rgba(255,255,255,0.45);"
-            "--xr-border-color: #2a3347;"
-            "--xr-disabled-color: rgba(255,255,255,0.28);"
-            "--xr-background-color: #111720;"
-            "--xr-background-color-row-even: #161d29;"
-            "--xr-background-color-row-odd: #1d2533;"
-            "}"
-            "</style>\n"
-        )
+    return html
+
+
+def _page_html(html: str, integrations: Sequence[Integration]) -> str:
+    """Return an HTML output as the page holds it.
+
+    Parameters
+    ----------
+    html : str
+        The HTML of an output, or its dark variant.
+    integrations : Sequence[Integration]
+        The integrations in effect: the output passes through the `html` method
+        of each, in order.
+
+    Returns
+    -------
+    str
+        The HTML to write on the page.
+    """
+    html = _normalize_html_output(html)
+    for integration in integrations:
+        html = integration.html(html)
     return html
 
 
@@ -620,6 +613,7 @@ def render_notebook(
     runtime_seconds: float,
     binder_url: str | None = None,
     html_thumbnail: HtmlThumbnail | None = None,
+    integrations: Sequence[Integration] = (),
 ) -> tuple[Path, tuple[Path, Path] | None]:
     """Render an executed notebook to Markdown plus light and dark image folders.
 
@@ -628,9 +622,9 @@ def render_notebook(
     source_notebook : nbformat.NotebookNode
         The example as read from disk; provides code, Markdown and cell tags.
     executed_notebook : nbformat.NotebookNode
-        The same cells after execution. Figure outputs carry their dark rendering
-        under `metadata["image/png"]["dark"]` (see `zallery.matplotlib`); other
-        PNGs are shown unchanged in both themes.
+        The same cells after execution. An output an integration rethemed
+        carries its dark variant under `metadata[<mime type>]["dark"]` (see
+        `zallery.integration`); other outputs are shown unchanged in both schemes.
     out_dir : pathlib.Path
         Directory to write the page and image folders into.
     base_name : str
@@ -642,6 +636,9 @@ def render_notebook(
     html_thumbnail : HtmlThumbnail, optional
         Writes the thumbnails of an HTML output. If not provided, only an image
         output can be a thumbnail.
+    integrations : Sequence[Integration], default: ()
+        The integrations in effect: each HTML output passes through their `html`
+        method, in order.
 
     Returns
     -------
@@ -662,6 +659,7 @@ def render_notebook(
     thumbnail: tuple[Path, Path] | None = None
     plotly_js: str | None = None
     scene_viewer: str | None = None
+    html_schemes = False
     failed = False
     cells = source_notebook.cells
     # Index of a Markdown cell already written under the code cell it annotates.
@@ -704,7 +702,7 @@ def render_notebook(
             if not _is_blank_widget_output(o)
         ]
         pending_text: list[str] = []
-        first_html: str | None = None
+        first_html: tuple[str, str] | None = None
         for output_index, output in enumerate(outputs):
             output_type = output.get("output_type")
             if output_type == "stream":
@@ -804,25 +802,48 @@ def render_notebook(
                         plotly_js = _write_plotly_js(out_dir)
                     element_id = f"zallery-plotly-{cell_index}-{output_index}"
                     figure = data[_PLOTLY_MIME]
-                    block = _plotly_block(figure, element_id, plotly_js, load=load)
+                    dark_figure = _dark(output, _PLOTLY_MIME)
+                    if not isinstance(dark_figure, dict):
+                        dark_figure = None
+                    block = _plotly_block(
+                        figure, element_id, plotly_js, load=load, dark=dark_figure
+                    )
                     cell_parts.append(_html_block(block))
                     if (
                         html_thumbnail is not None
                         and "thumbnail" in tags
                         and first_html is None
                     ):
-                        first_html = _plotly_block(
-                            figure, element_id, plotly_js, load=True, thumbnail=True
+                        # One HTML for both pictures: its script draws the figure
+                        # of the scheme the page is pictured under.
+                        picture = _plotly_block(
+                            figure,
+                            element_id,
+                            plotly_js,
+                            load=True,
+                            thumbnail=True,
+                            dark=dark_figure,
                         )
+                        first_html = (picture, picture)
                     continue
                 if isinstance(data, dict) and "text/html" in data:
                     html = data["text/html"]
                     if isinstance(html, list):
                         html = "".join(html)
                     _flush_text_outputs(cell_parts, pending_text)
-                    html = _normalize_html_output(str(html))
-                    first_html = first_html or html
-                    cell_parts.append(_html_block(html))
+                    html = _page_html(str(html), integrations)
+                    dark_html = _dark_data(output, "text/html")
+                    if dark_html is None:
+                        cell_parts.append(_html_block(html))
+                    else:
+                        dark_html = _page_html(dark_html, integrations)
+                        if not html_schemes:
+                            cell_parts.append(_HTML_STYLE)
+                            html_schemes = True
+                        cell_parts.append(
+                            _html_block(html, "light") + _html_block(dark_html, "dark")
+                        )
+                    first_html = first_html or (html, dark_html or html)
                     continue
                 if isinstance(data, dict) and "text/plain" in data:
                     pending_text.append(str(data["text/plain"]))
@@ -842,7 +863,7 @@ def render_notebook(
         ):
             thumb_light = out_dir / f"{base_name}_thumb_light.png"
             thumb_dark = out_dir / f"{base_name}_thumb_dark.png"
-            if html_thumbnail(first_html, thumb_light, thumb_dark):
+            if html_thumbnail(*first_html, thumb_light, thumb_dark):
                 thumbnail = (thumb_light, thumb_dark)
 
         if tab_title is None:

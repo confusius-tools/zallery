@@ -156,7 +156,13 @@ body {{
 
 
 def screenshot_html(
-    html: str, light_path: Path, dark_path: Path, *, browser: str, css: str = ""
+    html: str,
+    dark_html: str,
+    light_path: Path,
+    dark_path: Path,
+    *,
+    browser: str,
+    css: str = "",
 ) -> bool:
     """Write a light and a dark PNG thumbnail of an HTML output.
 
@@ -164,6 +170,9 @@ def screenshot_html(
     ----------
     html : str
         The HTML output.
+    dark_html : str
+        Its variant for the dark color scheme; the same HTML for an output that
+        has one look.
     light_path : pathlib.Path
         Where to write the thumbnail for the light color scheme.
     dark_path : pathlib.Path
@@ -181,9 +190,12 @@ def screenshot_html(
     """
     width, height = _WINDOW
     with tempfile.TemporaryDirectory(prefix="zallery-thumbnail-") as scratch:
-        for scheme, path in (("default", light_path), ("slate", dark_path)):
+        for scheme, content, path in (
+            ("default", html, light_path),
+            ("slate", dark_html, dark_path),
+        ):
             page = Path(scratch) / f"{scheme}.html"
-            page.write_text(_page(html, css, scheme=scheme), encoding="utf-8")
+            page.write_text(_page(content, css, scheme=scheme), encoding="utf-8")
             command = [
                 browser,
                 "--headless",

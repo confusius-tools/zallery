@@ -91,7 +91,7 @@ def test_screenshot_html_writes_a_light_and_a_dark_picture(tmp_path: Path) -> No
 
     browser = find_browser()
     assert browser is not None
-    assert screenshot_html(html, light, dark, browser=browser, css=css)
+    assert screenshot_html(html, html, light, dark, browser=browser, css=css)
 
     # Zensical's default page colors: white, and `hsla(225, 15%, 5%, 1)`.
     assert _corner(light) == pytest.approx((1.0, 1.0, 1.0), abs=0.01)
@@ -119,10 +119,32 @@ def test_screenshot_html_takes_the_page_color_of_the_site_styles(
 
     browser = find_browser()
     assert browser is not None
-    assert screenshot_html("<p>x</p>", light, dark, browser=browser, css=css)
+    assert screenshot_html(
+        "<p>x</p>", "<p>x</p>", light, dark, browser=browser, css=css
+    )
 
     assert _corner(light) == pytest.approx((1.0, 0.0, 0.0), abs=0.01)
     assert _corner(dark) == pytest.approx((0.0, 0.0, 1.0), abs=0.01)
+
+
+@pytest.mark.slow
+@pytest.mark.skipif(find_browser() is None, reason="needs a Chromium-family browser")
+def test_screenshot_html_pictures_each_scheme_from_its_own_html(tmp_path: Path) -> None:
+    """An output with a dark variant gives each picture the HTML of its scheme."""
+    light, dark = tmp_path / "light.png", tmp_path / "dark.png"
+    box = '<div style="background: {}; height: 60px"></div>'
+
+    browser = find_browser()
+    assert browser is not None
+    assert screenshot_html(
+        box.format("#ff0000"), box.format("#0000ff"), light, dark, browser=browser
+    )
+
+    red = (mimg.imread(light)[..., :3] == [1.0, 0.0, 0.0]).all(axis=-1)
+    blue = (mimg.imread(dark)[..., :3] == [0.0, 0.0, 1.0]).all(axis=-1)
+    assert red.any()
+    assert blue.any()
+    assert not (mimg.imread(light)[..., :3] == [0.0, 0.0, 1.0]).all(axis=-1).any()
 
 
 def test_screenshot_html_reports_a_browser_that_fails(
@@ -132,7 +154,7 @@ def test_screenshot_html_reports_a_browser_that_fails(
     light, dark = tmp_path / "light.png", tmp_path / "dark.png"
     browser = str(tmp_path / "missing-browser")
 
-    done = screenshot_html("<p>Hello</p>", light, dark, browser=browser)
+    done = screenshot_html("<p>Hello</p>", "<p>Hello</p>", light, dark, browser=browser)
 
     assert not done
     assert not light.exists()

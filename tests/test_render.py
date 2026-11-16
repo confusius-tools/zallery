@@ -12,8 +12,11 @@ import plotly.io as pio
 import pytest
 from plotly.offline import get_plotlyjs, get_plotlyjs_version
 
+from zallery import Integration
 from zallery._types import SCENE_MIME
+from zallery.plotly import MIME, Plotly
 from zallery.render import render_notebook
+from zallery.xarray import Xarray
 
 
 def _make_nb(*, thumbnail: bool = False) -> nbformat.NotebookNode:
@@ -437,6 +440,44 @@ def _html_cell(*tags: str, image: bool = False) -> nbformat.NotebookNode:
     return cell
 
 
+def _plotly_output(fig: go.Figure) -> nbformat.NotebookNode:
+    """A plotly output as the kernel gives it: light figure, dark one in metadata."""
+    # What plotly's default renderer in a kernel gives: its mime type alone.
+    data = pio.renderers["plotly_mimetype"].to_mimebundle(fig.to_dict())
+    metadata: dict = {}
+    Plotly()._both(data, metadata)
+    return nbformat.v4.new_output("display_data", data=data, metadata=metadata)
+
+
+def _render_outputs(tmp_path: Path, outputs: list, *tags: str, **kwargs) -> str:
+    """Render one code cell that has these outputs; return the page."""
+    cell = nbformat.v4.new_code_cell("x", metadata={"tags": list(tags)})
+    cell.outputs = list(outputs)
+    nb = nbformat.v4.new_notebook()
+    nb.cells.append(cell)
+    md_path, _ = render_notebook(
+        nb, nb, out_dir=tmp_path, base_name="ex", runtime_seconds=1.0, **kwargs
+    )
+    return md_path.read_text()
+
+
+def _figure_json(markdown: str) -> dict:
+    """Return the JSON the page holds for its first plotly figure."""
+    found = re.search(r'<script type="application/json"[^>]*>(.*?)</script>', markdown)
+    assert found is not None
+    return json.loads(found.group(1))
+
+
+def _html_output(light: str, dark: str | None = None) -> nbformat.NotebookNode:
+    """An HTML output, with the dark variant an integration gave it if any."""
+    metadata = {} if dark is None else {"text/html": {"dark": dark}}
+    return nbformat.v4.new_output(
+        "display_data",
+        data={"text/html": light, "text/plain": "x"},
+        metadata=metadata,
+    )
+
+
 def _render_plotly(
     tmp_path: Path,
     title: str,
@@ -448,19 +489,8 @@ def _render_plotly(
     figure = go.Figure(
         go.Bar(x=[1, 2], y=[3, 4]), layout={"title": {"text": title}, **(layout or {})}
     )
-    # The kernel sends what plotly's default renderer there gives: its mime type alone.
-    bundle = pio.renderers["plotly_mimetype"].to_mimebundle(figure.to_dict())
-    cell = nbformat.v4.new_code_cell("fig")
-    cell.outputs = [
-        nbformat.v4.new_output(output_type="display_data", data=bundle)
-        for _ in range(shown)
-    ]
-    nb = nbformat.v4.new_notebook()
-    nb.cells.append(cell)
-    md_path, _ = render_notebook(
-        nb, nb, out_dir=tmp_path, base_name="ex", runtime_seconds=1.0
-    )
-    return bundle["application/vnd.plotly.v1+json"], md_path.read_text()
+    output = _plotly_output(figure)
+    return output.data[MIME], _render_outputs(tmp_path, [output] * shown)
 
 
 def test_render_draws_a_plotly_figure_in_each_color_scheme(tmp_path: Path) -> None:
@@ -480,6 +510,41 @@ def test_render_draws_a_plotly_figure_in_each_color_scheme(tmp_path: Path) -> No
         assert layout["template"]["layout"]["paper_bgcolor"] == "rgba(0,0,0,0)"
 
 
+def test_render_draws_a_plotly_figure_from_the_two_figures_it_is_given(
+    tmp_path: Path,
+) -> None:
+    """The renderer merges no template: each layout is the figure of its scheme."""
+    output = _plotly_output(go.Figure(go.Bar(y=[1])))
+    output.metadata[MIME]["dark"]["layout"]["title"] = {"text": "only dark"}
+
+    page = _figure_json(_render_outputs(tmp_path, [output]))
+
+    assert page["layouts"]["slate"]["title"] == {"text": "only dark"}
+    assert "title" not in page["layouts"]["default"]
+    assert "dark_data" not in page
+
+
+def test_render_draws_a_plotly_figure_without_dark_figure_as_it_is(
+    tmp_path: Path,
+) -> None:
+    figure = json.loads(pio.to_json(go.Figure(go.Bar(y=[1]))))
+    output = nbformat.v4.new_output("display_data", data={MIME: figure})
+
+    page = _figure_json(_render_outputs(tmp_path, [output]))
+
+    assert page["layouts"]["slate"] == page["layouts"]["default"] == figure["layout"]
+
+
+def test_render_keeps_dark_traces_that_differ(tmp_path: Path) -> None:
+    output = _plotly_output(go.Figure(go.Bar(y=[1])))
+    output.metadata[MIME]["dark"]["data"][0]["marker"] = {"color": "#ffffff"}
+
+    markdown = _render_outputs(tmp_path, [output])
+
+    assert _figure_json(markdown)["dark_data"][0]["marker"] == {"color": "#ffffff"}
+    assert "figure.dark_data" in markdown
+
+
 def test_render_loads_plotly_js_once_from_a_copy_next_to_the_page(
     tmp_path: Path,
 ) -> None:
@@ -494,11 +559,9 @@ def test_render_loads_plotly_js_once_from_a_copy_next_to_the_page(
 
 def test_render_takes_the_thumbnail_from_a_plotly_figure(tmp_path: Path) -> None:
     """The browser gets the figure with plotly.js itself: it loads nothing."""
-    figure = go.Figure(go.Bar(x=[1, 2], y=[3, 4]))
-    bundle = pio.renderers["plotly_mimetype"].to_mimebundle(figure.to_dict())
     cell = nbformat.v4.new_code_cell("fig")
     cell.metadata["tags"] = ["thumbnail"]
-    cell.outputs = [nbformat.v4.new_output(output_type="display_data", data=bundle)]
+    cell.outputs = [_plotly_output(go.Figure(go.Bar(x=[1, 2], y=[3, 4])))]
     thumbnailer = _Thumbnailer()
 
     thumbnail = _render_thumbnail(tmp_path, cell, thumbnailer)
@@ -537,9 +600,13 @@ class _Thumbnailer:
     def __init__(self, *, works: bool = True) -> None:
         self.works = works
         self.seen: list[str] = []
+        self.seen_dark: list[str] = []
 
-    def __call__(self, html: str, light_path: Path, dark_path: Path) -> bool:
+    def __call__(
+        self, html: str, dark_html: str, light_path: Path, dark_path: Path
+    ) -> bool:
         self.seen.append(html)
+        self.seen_dark.append(dark_html)
         if self.works:
             light_path.write_bytes(b"light")
             dark_path.write_bytes(b"dark")
@@ -844,3 +911,68 @@ def test_render_shows_the_scene_of_each_color_scheme(tmp_path: Path) -> None:
     assert dark is not None and "fileURL=ex_cell_01_0_dark.vtksz" in dark.group()
     # The rule that shows one of the two comes with the page.
     assert md.count('[data-md-color-scheme="slate"] .gallery-scene-light') == 1
+
+
+def test_render_shows_an_html_output_with_a_dark_variant_in_each_scheme(
+    tmp_path: Path,
+) -> None:
+    output = _html_output("<p>light</p>", "<p>dark</p>")
+
+    markdown = _render_outputs(tmp_path, [output, output])
+
+    light = '<div class="gallery-rich-output gallery-html-light"><p>light</p></div>'
+    dark = '<div class="gallery-rich-output gallery-html-dark"><p>dark</p></div>'
+    assert markdown.count(light) == markdown.count(dark) == 2
+    # Two outputs, one style rule.
+    assert markdown.count("<style>") == 1
+
+
+def test_render_shows_an_html_output_with_one_look_once(tmp_path: Path) -> None:
+    markdown = _render_outputs(tmp_path, [_html_output("<p>one</p>")])
+
+    assert '<div class="gallery-rich-output"><p>one</p></div>' in markdown
+    assert "gallery-html-" not in markdown
+
+
+def test_render_passes_html_outputs_through_the_integrations(tmp_path: Path) -> None:
+    class Shout(Integration):
+        def html(self, html: str) -> str:
+            return html.upper()
+
+    output = _html_output("<p>light</p>", "<p>dark</p>")
+
+    markdown = _render_outputs(tmp_path, [output], integrations=[Shout()])
+
+    assert "<P>LIGHT</P>" in markdown
+    assert "<P>DARK</P>" in markdown
+
+
+def test_render_leaves_an_xarray_view_to_its_integration(tmp_path: Path) -> None:
+    output = _html_output("<div class='xr-wrap' style='display:none'></div>")
+
+    assert "--xr-font-color0" not in _render_outputs(tmp_path, [output])
+    assert "--xr-font-color0" in _render_outputs(
+        tmp_path, [output], integrations=[Xarray()]
+    )
+
+
+def test_render_hands_each_scheme_its_html_for_the_thumbnail(tmp_path: Path) -> None:
+    thumbnailer = _Thumbnailer(works=False)
+    output = _html_output("<p>light</p>", "<p>dark</p>")
+
+    _render_outputs(tmp_path, [output], "thumbnail", html_thumbnail=thumbnailer)
+
+    assert thumbnailer.seen == ["<p>light</p>"]
+    assert thumbnailer.seen_dark == ["<p>dark</p>"]
+
+
+def test_render_hands_an_html_with_one_look_twice_for_the_thumbnail(
+    tmp_path: Path,
+) -> None:
+    thumbnailer = _Thumbnailer(works=False)
+
+    _render_outputs(
+        tmp_path, [_html_output("<p>one</p>")], "thumbnail", html_thumbnail=thumbnailer
+    )
+
+    assert thumbnailer.seen == thumbnailer.seen_dark == ["<p>one</p>"]
