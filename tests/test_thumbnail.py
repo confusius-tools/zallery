@@ -9,7 +9,6 @@ import matplotlib.colors as mcolors
 import matplotlib.image as mimg
 import pytest
 
-from zallery.theme import DARK, LIGHT
 from zallery.thumbnail import find_browser, screenshot_html
 
 
@@ -94,8 +93,9 @@ def test_screenshot_html_writes_a_light_and_a_dark_picture(tmp_path: Path) -> No
     assert browser is not None
     assert screenshot_html(html, light, dark, browser=browser, css=css)
 
-    assert _corner(light) == pytest.approx(mcolors.to_rgb(LIGHT.bg), abs=0.01)
-    assert _corner(dark) == pytest.approx(mcolors.to_rgb(DARK.bg), abs=0.01)
+    # Zensical's default page colors: white, and `hsla(225, 15%, 5%, 1)`.
+    assert _corner(light) == pytest.approx((1.0, 1.0, 1.0), abs=0.01)
+    assert _corner(dark) == pytest.approx(mcolors.to_rgb("#0b0c0f"), abs=0.01)
     pixels = mimg.imread(light)
     height, width = pixels.shape[:2]
     assert width / height == pytest.approx(4 / 3, rel=0.05)
@@ -103,6 +103,26 @@ def test_screenshot_html_writes_a_light_and_a_dark_picture(tmp_path: Path) -> No
     assert blue.any()
     green = (pixels[..., :3] == [0.0, 1.0, 0.0]).all(axis=-1)
     assert green.any()
+
+
+@pytest.mark.slow
+@pytest.mark.skipif(find_browser() is None, reason="needs a Chromium-family browser")
+def test_screenshot_html_takes_the_page_color_of_the_site_styles(
+    tmp_path: Path,
+) -> None:
+    """A site with its own page colors sets Zensical's variables, as on the site."""
+    light, dark = tmp_path / "light.png", tmp_path / "dark.png"
+    css = (
+        '[data-md-color-scheme="default"] { --md-default-bg-color: #ff0000; }'
+        '[data-md-color-scheme="slate"] { --md-default-bg-color: #0000ff; }'
+    )
+
+    browser = find_browser()
+    assert browser is not None
+    assert screenshot_html("<p>x</p>", light, dark, browser=browser, css=css)
+
+    assert _corner(light) == pytest.approx((1.0, 0.0, 0.0), abs=0.01)
+    assert _corner(dark) == pytest.approx((0.0, 0.0, 1.0), abs=0.01)
 
 
 def test_screenshot_html_reports_a_browser_that_fails(

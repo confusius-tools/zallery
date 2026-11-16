@@ -92,13 +92,26 @@ def find_browser() -> str | None:
     return _playwright_browser()
 
 
-def _page(html: str, css: str, *, scheme: str, background: str, color: str) -> str:
+_PAGE_COLORS = {
+    "default": ("#fff", "#000000de"),
+    "slate": ("hsla(225, 15%, 5%, 1)", "hsla(225, 15%, 90%, 0.82)"),
+}
+"""Background and text color of a default Zensical page, for each color scheme.
+
+The values of `--md-default-bg-color` and `--md-default-fg-color` in the theme's
+stylesheet (its modern variant), which is not available to the thumbnail page.
+"""
+
+
+def _page(html: str, css: str, *, scheme: str) -> str:
     """Return a page showing one HTML output as it shows on the site.
 
     The output sits in the same wrappers and under the same color scheme attribute
     as on an example page, so the styles of the output and of the site apply. The
     theme variables and font sizes that site styles usually build on are defined
-    here, since the theme's own stylesheet is not available.
+    here, since the theme's own stylesheet is not available: the page has the
+    colors of a default Zensical page. The site styles come after, so a site with
+    its own page colors sets the same variables, as it does for its pages.
 
     Parameters
     ----------
@@ -108,16 +121,13 @@ def _page(html: str, css: str, *, scheme: str, background: str, color: str) -> s
         Styles of the site to apply.
     scheme : str
         Value of the `data-md-color-scheme` attribute: `default` or `slate`.
-    background : str
-        Page background color.
-    color : str
-        Text color.
 
     Returns
     -------
     str
         The HTML document.
     """
+    background, color = _PAGE_COLORS[scheme]
     return f"""<!doctype html>
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="{_POLICY}">
@@ -134,8 +144,8 @@ html {{ font-size: 125%; }}
 body {{
   margin: 0;
   padding: 0.7rem;
-  background: {background};
-  color: {color};
+  background: var(--md-default-bg-color);
+  color: var(--md-default-fg-color);
   font: 0.8rem/1.6 system-ui, sans-serif;
 }}
 {css}
@@ -169,21 +179,11 @@ def screenshot_html(
         Whether both thumbnails were written. A browser that fails is reported on
         the standard error and leaves no thumbnail: the build goes on without one.
     """
-    # Imported here so that a build without HTML thumbnails does not pay for
-    # matplotlib, which the theme module imports.
-    from zallery.theme import DARK, LIGHT
-
     width, height = _WINDOW
     with tempfile.TemporaryDirectory(prefix="zallery-thumbnail-") as scratch:
-        for scheme, theme, path in (
-            ("default", LIGHT, light_path),
-            ("slate", DARK, dark_path),
-        ):
+        for scheme, path in (("default", light_path), ("slate", dark_path)):
             page = Path(scratch) / f"{scheme}.html"
-            page.write_text(
-                _page(html, css, scheme=scheme, background=theme.bg, color=theme.fg),
-                encoding="utf-8",
-            )
+            page.write_text(_page(html, css, scheme=scheme), encoding="utf-8")
             command = [
                 browser,
                 "--headless",
