@@ -25,7 +25,10 @@ for angle in range(0, 360, 10):
 pl.show()
 
 # %% [markdown]
-# A plotter without a recording shows its last picture:
+# A plotter without a recording shows as a scene that you can rotate and zoom, when
+# the `trame-pyvista` package is installed: PyVista exports the scene, and your
+# browser draws it, with no server. Without the package, the plotter shows its last
+# picture. That picture is the thumbnail of the example in both cases.
 
 # %% tags=["thumbnail"]
 pl = pv.Plotter()
@@ -33,4 +36,5 @@ pl.add_mesh(pv.Sphere(), show_edges=True, color="tan")
 pl.show()
 
 # %% [markdown]
-# The pictures are the same in both color schemes, on PyVista's own background.
+# The animation and the scene are the same in both color schemes, on PyVista's own
+# background.
