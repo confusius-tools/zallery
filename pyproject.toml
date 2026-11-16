@@ -101,6 +101,8 @@ line-length = 88
 [tool.ruff.lint.per-file-ignores]
 # The last expression of a cell displays its value, as in a notebook.
 "docs/examples/**" = ["B018"]
+# A subclass of an integration class sets its data as class attributes.
+"tests/**" = ["RUF012"]
 
 [tool.ty.src]
 include = ["src", "tests"]

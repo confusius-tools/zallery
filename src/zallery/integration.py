@@ -54,12 +54,15 @@ class Integration:
         library the example may not use. The default does nothing.
         """
 
-    def retheme(self, obj: Any, scheme: Scheme) -> AbstractContextManager[Any] | None:
+    def retheme(
+        self, obj: Any, scheme: Scheme, /
+    ) -> AbstractContextManager[Any] | None:
         """Give an object the look of a color scheme, until the rendering is taken.
 
         Runs in the kernel. Zallery calls it for `"light"`, then for `"dark"`, each
         time just before it takes the rendering for that scheme. The object arrives
-        both times as the example left it. The default changes nothing.
+        both times as the example left it. The default changes nothing. Both
+        arguments are passed by position: a subclass names them as it likes.
 
         Parameters
         ----------
