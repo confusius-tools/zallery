@@ -2,7 +2,8 @@
 # # An example that raises
 #
 # A failing cell does not abort the gallery build: its traceback is rendered on the
-# page, as a notebook would show it.
+# page, as a notebook would show it. On the index page, the card of the example
+# shows the error thumbnail of the site, if the site has one.
 #
 # The cells before the failure render normally.
 

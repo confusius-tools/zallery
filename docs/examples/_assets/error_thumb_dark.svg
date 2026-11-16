@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240" role="img" aria-labelledby="title desc">
+  <title id="title">Error example thumbnail (dark)</title>
+  <desc id="desc">Placeholder thumbnail for examples in which a cell raised an error.</desc>
+  <rect width="320" height="240" rx="18" fill="#111720"/>
+  <rect x="30" y="28" width="260" height="160" rx="12" fill="#1a2030" stroke="#2a3347"/>
+  <g fill="none" stroke="#e94b5f" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M160 58 L214 156 L106 156 Z"/>
+    <path d="M160 92 L160 122"/>
+  </g>
+  <circle cx="160" cy="139" r="5" fill="#e94b5f"/>
+  <g fill="#f3f5fa" font-family="Inter, Arial, sans-serif" text-anchor="middle">
+    <text x="160" y="214" font-size="24" font-weight="700">Error</text>
+  </g>
+</svg>
