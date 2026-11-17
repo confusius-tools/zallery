@@ -1,14 +1,13 @@
-# The defaults of `[tool.zallery]`, which Zallery reads from the `pyproject.toml`
-# of a project. A key the project sets replaces the value here. Relative paths
-# resolve against the directory of that `pyproject.toml`.
+# The defaults of `[tool.zallery]`, which Zallery reads from the `pyproject.toml` of a
+# project. A key the project sets replaces the value here. Relative paths resolve
+# against the directory of that `pyproject.toml`.
 
 [tool.zallery]
 
 # Directory of example sections.
 examples = "docs/examples"
 
-# Where rendered pages and images go. Not set: the `_built` directory in
-# `examples`.
+# Where rendered pages and images go. Not set: the `_built` directory under `examples`.
 # built = "docs/examples/_built"
 
 # Execution/render cache.
@@ -17,14 +16,25 @@ cache = ".gallery-cache"
 # `owner/repo` for the Binder launch badges. Not set: no Binder badge.
 # binder_repo = "owner/repo"
 
-# Integration classes of the project, as "module:Class" names. A class that
-# subclasses one Zallery ships takes its place; any other is added. The classes
-# Zallery ships are in effect without being named here:
+# Integration classes of the project, as "module:Class" names. A class that subclasses
+# one that Zallery ships will takes its place; any other is added. The classes that
+# ships with Zallery are not named here:
 # `zallery.integration.matplotlib:Matplotlib`, `zallery.integration.plotly:Plotly`,
 # `zallery.integration.pyvista:PyVista` and `zallery.integration.xarray:Xarray`.
 integrations = []
 
-# Files whose change invalidates the cache.
+# Other files whose change invalidates the cache. The lockfile is there so that a
+# change of a dependency runs the examples again. A cached example is reused while
+# these files and all of the following are unchanged; the following need no entry
+# here:
+# - the source of the example;
+# - the Python version;
+# - the values of `examples`, `built`, `binder_repo`, `integrations` and
+#   `html_thumbnails`;
+# - the Zallery sources;
+# - the module of each integration class of the project;
+# - the `html_thumbnail_css` stylesheets;
+# - with `html_thumbnails` on, whether a browser was found.
 fingerprint = ["uv.lock"]
 
 # Whether an HTML output may be the thumbnail of an example, pictured by a
