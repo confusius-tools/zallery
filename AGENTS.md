@@ -39,9 +39,16 @@ just serve-docs    # gallery, then serve the docs locally
 Run a single test: `uv run pytest tests/test_matplotlib.py::test_name`.
 
 The docs site (`zensical.toml`, `docs/`) is small on purpose: the home page includes
-`README.md`, `docs/user-guide/` is the user guide, and `docs/examples/` is a gallery
-built by Zallery itself. Each example there shows one feature; a new example or
-guide page also needs a `nav` entry in `zensical.toml`.
+`README.md`, `docs/user-guide/` is the user guide, `docs/api/` is the API reference,
+and `docs/examples/` is a gallery built by Zallery itself. Each example there shows
+one feature; a new example, guide page or API page also needs a `nav` entry in
+`zensical.toml`.
+The API reference is written from the docstrings by mkdocstrings, which is in the
+`dev` group with zensical: a cross-reference in a docstring has to resolve, or the
+strict build fails. `api_references` is on for this gallery, so an example that
+uses Zallery's own classes links to their reference, which lists it back.
+While `zensical serve` runs, a `zensical build` fails to clean `site/`: check a
+build in a copy of the tree.
 `binder/Dockerfile` is the environment mybinder.org builds for the Binder badges
 of the example pages; it installs the `docs` group.
 Libraries only the examples import (pandas, xarray, plotly, pyvista, trame-pyvista,

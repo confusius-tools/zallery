@@ -28,6 +28,7 @@ nav = [
             { "A first plot" = "examples/_built/matplotlib/first_plot.md" },
             { "Choosing the thumbnail" = "examples/_built/matplotlib/choose_thumbnail.md" },
             { "A palette for each color scheme" = "examples/_built/matplotlib/palettes.md" },
+            { "How a figure gets its dark look" = "examples/_built/matplotlib/dark_look.md" },
         ]},
         { "When things go wrong" = [
             { "An example that raises" = "examples/_built/errors/raise_error.md" },
@@ -47,6 +48,14 @@ nav = [
             { "PyVista plots" = "examples/_built/outputs/pyvista.md" },
             { "An integration of your own" = "examples/_built/outputs/integration.md" },
         ]},
+    ]},
+    { "API reference" = [
+        { "zallery" = "api/zallery.md" },
+        { "zallery.integration" = "api/integration.md" },
+        { "zallery.integration.matplotlib" = "api/matplotlib.md" },
+        { "zallery.integration.plotly" = "api/plotly.md" },
+        { "zallery.integration.pyvista" = "api/pyvista.md" },
+        { "zallery.integration.xarray" = "api/xarray.md" },
     ]},
 ]
 
@@ -106,3 +115,25 @@ permalink = true
 
 # The home page is the README.
 [project.markdown_extensions.pymdownx.snippets]
+
+# The API reference is written from the docstrings. With `backlinks`, each object
+# lists the pages that reference it, among them the examples that use it:
+# `api_references` is on in `[tool.zallery]` of `pyproject.toml`.
+[project.plugins.mkdocstrings.handlers.python]
+paths = ["src"]
+
+[project.plugins.mkdocstrings.handlers.python.options]
+docstring_style = "numpy"
+docstring_section_style = "list"
+members_order = "source"
+filters = ["!^_"]
+heading_level = 2
+show_root_heading = true
+show_source = false
+show_symbol_type_toc = true
+separate_signature = true
+show_signature_annotations = true
+signature_crossrefs = true
+merge_init_into_class = true
+inherited_members = true
+backlinks = "tree"

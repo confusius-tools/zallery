@@ -48,6 +48,7 @@ build-backend = "uv_build"
 [dependency-groups]
 dev = [
     "codespell>=2.3.0",
+    "mkdocstrings[python]>=1.0.8",
     "numpydoc>=1.11.0",
     "plotly>=7.1.0",
     "prek>=0.4.8",
@@ -77,6 +78,8 @@ html_thumbnail_css = ["docs/stylesheets/extra.css"]
 # The look of this site: its page colors and palettes for matplotlib, and the
 # badges of one example (see `tools/gallery.py`).
 integrations = ["tools.gallery:Figures", "tools.gallery:Badges"]
+# An example that uses Zallery's own classes links to their API reference.
+api_references = true
 
 [tool.numpydoc_validation]
 exclude = [

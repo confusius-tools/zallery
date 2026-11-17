@@ -15,7 +15,9 @@ api_references = true
 ```
 
 The page of an example that uses `my_package` then ends with a section "API used
-in this example", after the running time and the downloads.
+in this example", after the running time and the downloads. The gallery of this
+site has the option on: see the end of
+[How a figure gets its dark look](../examples/_built/matplotlib/dark_look.md).
 
 - The package is the `name` of `[project]`, as it is imported: `my-package` gives
   `my_package`. Objects of other packages are not listed.
