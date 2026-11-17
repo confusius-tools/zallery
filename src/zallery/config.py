@@ -266,8 +266,9 @@ def deps_fingerprint(config: Config) -> str:
         if path.is_file():
             parts.append(f"\n# {path.relative_to(config.root)}\n")
             parts.append(path.read_text(encoding="utf-8"))
-    for path in sorted(Path(zallery.__file__).resolve().parent.glob("*.py")):
-        parts.append(f"\n# zallery/{path.name}\n")
+    package = Path(zallery.__file__).resolve().parent
+    for path in sorted(package.rglob("*.py")):
+        parts.append(f"\n# zallery/{path.relative_to(package).as_posix()}\n")
         parts.append(path.read_text(encoding="utf-8"))
     for integration in config.integrations:
         cls = type(integration)

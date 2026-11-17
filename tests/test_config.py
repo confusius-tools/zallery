@@ -137,6 +137,19 @@ def _classes(config: Config) -> list[str]:
     return [type(integration).__name__ for integration in config.integrations]
 
 
+def test_deps_fingerprint_holds_the_sources_of_the_stock_integrations(
+    tmp_path: Path,
+) -> None:
+    _write_pyproject(tmp_path, "")
+
+    fingerprint = deps_fingerprint(load_config(tmp_path))
+
+    assert "\n# zallery/config.py\n" in fingerprint
+    assert "\n# zallery/integration/__init__.py\n" in fingerprint
+    assert "\n# zallery/integration/matplotlib.py\n" in fingerprint
+    assert "def swap_cmaps(" in fingerprint
+
+
 def test_load_config_has_the_stock_integrations_by_default(tmp_path: Path) -> None:
     _write_pyproject(tmp_path, "")
 
@@ -153,7 +166,7 @@ def test_a_listed_subclass_replaces_its_stock_class_and_others_are_added(
 ) -> None:
     (tmp_path / "t8_conf.py").write_text(
         "from zallery import Integration\n"
-        "from zallery.matplotlib import Matplotlib\n"
+        "from zallery.integration.matplotlib import Matplotlib\n"
         "class Figures(Matplotlib):\n    cmaps = {}\n"
         "class Cards(Integration):\n    type = 'cards.Card'\n"
     )
@@ -169,11 +182,11 @@ def test_a_listed_subclass_replaces_its_stock_class_and_others_are_added(
 
 
 _BAD_PALETTE = (
-    "from zallery.matplotlib import Matplotlib\n"
+    "from zallery.integration.matplotlib import Matplotlib\n"
     "class Bad(Matplotlib):\n    palette = ('Set2', 'coolwarm')\n"
 )
 _TWO_SUBCLASSES = (
-    "from zallery.matplotlib import Matplotlib\n"
+    "from zallery.integration.matplotlib import Matplotlib\n"
     "class One(Matplotlib):\n    pass\n"
     "class Two(Matplotlib):\n    pass\n"
 )
@@ -218,7 +231,7 @@ def test_load_config_points_removed_keys_to_integrations(
 
 def test_deps_fingerprint_tracks_the_integrations(tmp_path: Path) -> None:
     source = (
-        "from zallery.matplotlib import Matplotlib\n"
+        "from zallery.integration.matplotlib import Matplotlib\n"
         "class Figures(Matplotlib):\n    cmaps = {}\n"
     )
     (tmp_path / "t8_print.py").write_text(source)

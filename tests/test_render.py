@@ -14,9 +14,9 @@ from plotly.offline import get_plotlyjs, get_plotlyjs_version
 
 from zallery import Integration
 from zallery._types import SCENE_MIME
-from zallery.plotly import MIME, Plotly
+from zallery.integration.plotly import MIME, Plotly
+from zallery.integration.xarray import Xarray
 from zallery.render import render_notebook
-from zallery.xarray import Xarray
 
 _PY_BADGE = (
     "[![Download .py](https://img.shields.io/badge/"

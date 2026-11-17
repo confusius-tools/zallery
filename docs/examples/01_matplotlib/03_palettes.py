@@ -9,7 +9,7 @@
 # first:
 #
 # ```python
-# from zallery.matplotlib import Matplotlib
+# from zallery.integration.matplotlib import Matplotlib
 #
 #
 # class Figures(Matplotlib):

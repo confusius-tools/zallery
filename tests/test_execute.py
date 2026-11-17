@@ -156,7 +156,7 @@ def test_execute_runs_the_project_integration_in_the_kernel(tmp_path: Path) -> N
     marker = tmp_path / "calls.txt"
     (tmp_path / "t8_kernel.py").write_text(
         "from pathlib import Path\n"
-        "from zallery.matplotlib import Matplotlib\n"
+        "from zallery.integration.matplotlib import Matplotlib\n"
         "class Recording(Matplotlib):\n"
         "    def retheme(self, fig, scheme):\n"
         f"        with Path({str(marker)!r}).open('a') as f:\n"
@@ -233,7 +233,7 @@ def test_execute_gives_a_plotly_figure_its_dark_figure_however_it_is_shown(
 def test_execute_keeps_a_pyvista_picture_whose_dark_look_fails(tmp_path: Path) -> None:
     """A plot is not lost for its dark look: the light picture shows, with the error."""
     (tmp_path / "t11_pyvista.py").write_text(
-        "from zallery.pyvista import PyVista\n"
+        "from zallery.integration.pyvista import PyVista\n"
         "class Bad(PyVista):\n"
         "    themes = ('DocumentTheme', 'NoSuchTheme')\n"
     )
@@ -264,7 +264,7 @@ def test_execute_takes_a_pyvista_picture_again_for_a_light_look(tmp_path: Path) 
     """A light look that changes a plotter replaces the picture `show()` took."""
     (tmp_path / "t12_pyvista.py").write_text(
         "from contextlib import ExitStack\n"
-        "from zallery.pyvista import PyVista\n"
+        "from zallery.integration.pyvista import PyVista\n"
         "class Pure(PyVista):\n"
         "    def retheme(self, plotter, scheme):\n"
         "        renderer, restore = plotter.renderer, ExitStack()\n"

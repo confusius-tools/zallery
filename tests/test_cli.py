@@ -85,7 +85,7 @@ def test_cli_draws_each_page_with_its_matplotlib_palette(tmp_path: Path) -> None
         "# %%\nimport matplotlib.pyplot as plt\n_ = plt.plot([1, 2, 3], linewidth=20)\n"
     )
     (project / "t8_cli.py").write_text(
-        "from zallery.matplotlib import Matplotlib\n"
+        "from zallery.integration.matplotlib import Matplotlib\n"
         "class Figures(Matplotlib):\n"
         '    palette = (["#ff0000"], ["#00ff00"])\n'
     )

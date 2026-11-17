@@ -141,8 +141,8 @@ What this means when writing an example:
   both themes.
 
 These colors and colormaps are the data of a class,
-`zallery.matplotlib.Matplotlib`. A pair is `(light, dark)`; a mapping is
-`{light: dark}`:
+`zallery.integration.matplotlib.Matplotlib`. A pair is `(light, dark)`; a mapping
+is `{light: dark}`:
 
 | Attribute | Default | Meaning |
 |---|---|---|
@@ -162,7 +162,7 @@ To change the look, subclass `Matplotlib` in a module of your project:
 
 ```python
 # tools/gallery.py
-from zallery.matplotlib import Matplotlib
+from zallery.integration.matplotlib import Matplotlib
 
 
 class Figures(Matplotlib):
@@ -210,10 +210,10 @@ color schemes, is said by an *integration* class. Zallery ships four:
 
 | Class | For |
 |---|---|
-| `zallery.matplotlib:Matplotlib` | [matplotlib figures](#light-and-dark-figures) |
-| `zallery.plotly:Plotly` | [plotly figures](#plotly-figures) |
-| `zallery.pyvista:PyVista` | [PyVista plots](#pyvista-plots) |
-| `zallery.xarray:Xarray` | HTML views of xarray objects |
+| `zallery.integration.matplotlib:Matplotlib` | [matplotlib figures](#light-and-dark-figures) |
+| `zallery.integration.plotly:Plotly` | [plotly figures](#plotly-figures) |
+| `zallery.integration.pyvista:PyVista` | [PyVista plots](#pyvista-plots) |
+| `zallery.integration.xarray:Xarray` | HTML views of xarray objects |
 
 Subclass one to change it, or subclass `zallery.Integration` for a display Zallery
 does not know. A class has one attribute and three methods, all optional:
@@ -256,7 +256,7 @@ context manager of the stock class, or `None`:
 
 ```python
 from matplotlib.lines import Line2D
-from zallery.matplotlib import Matplotlib
+from zallery.integration.matplotlib import Matplotlib
 
 
 class Figures(Matplotlib):
@@ -270,7 +270,7 @@ class Figures(Matplotlib):
         return restore
 ```
 
-`zallery.matplotlib.swap_colors` and `zallery.matplotlib.swap_cmaps` take the
+`swap_colors` and `swap_cmaps` of `zallery.integration.matplotlib` take the
 figure's artists and a mapping, and each returns such a context manager; combine
 several with `contextlib.ExitStack`.
 
@@ -314,9 +314,9 @@ renderer setup.
   plotly's `plotly_dark` template merged into the figure's own. Both drop the
   paper background, so the figure sits on the page. Colors set on the figure
   itself, not by its template, are the same in both schemes.
-- The templates are the `template` attribute of `zallery.plotly.Plotly`,
-  `(None, "plotly_dark")`: the name of a plotly template for each scheme, or `None`
-  to merge none. Subclass it to change them (see [Integrations](#integrations)).
+- The templates are the `template` attribute of
+  `zallery.integration.plotly.Plotly`, `(None, "plotly_dark")`: the name of a
+  plotly template for each scheme, or `None` to merge none. Subclass it to change them (see [Integrations](#integrations)).
 - Zallery copies plotly.js from the plotly package that made the figure next to
   the page, so the site loads nothing from plotly's servers. The file weighs about
   5 MB; there is one per section that has plotly figures.
@@ -339,9 +339,10 @@ value. A plotter is closed after the cell that shows it.
   background, and the black of texts, edges, outlines and axes, which becomes
   white. A color you set yourself to one of those is swapped too; other colors and
   colormaps stay. A plot you draw under another theme stays as it is.
-- The two themes are the `themes` attribute of `zallery.pyvista.PyVista`,
-  `("DocumentTheme", "DarkTheme")`: names of classes of `pyvista.themes`. The
-  environment variables are its `environment` attribute. Subclass it to change them
+- The two themes are the `themes` attribute of
+  `zallery.integration.pyvista.PyVista`, `("DocumentTheme", "DarkTheme")`: names
+  of classes of `pyvista.themes`. The environment variables are its
+  `environment` attribute. Subclass it to change them
   (see [Integrations](#integrations)).
 - A plotter that records a GIF, with `open_gif` and `write_frame`, shows the
   animation instead of its last picture. Recording needs the `imageio` package. The

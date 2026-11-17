@@ -20,8 +20,8 @@ cache = ".gallery-cache"
 # Integration classes of the project, as "module:Class" names. A class that
 # subclasses one Zallery ships takes its place; any other is added. The classes
 # Zallery ships are in effect without being named here:
-# `zallery.matplotlib:Matplotlib`, `zallery.plotly:Plotly`,
-# `zallery.pyvista:PyVista` and `zallery.xarray:Xarray`.
+# `zallery.integration.matplotlib:Matplotlib`, `zallery.integration.plotly:Plotly`,
+# `zallery.integration.pyvista:PyVista` and `zallery.integration.xarray:Xarray`.
 integrations = []
 
 # Files whose change invalidates the cache.

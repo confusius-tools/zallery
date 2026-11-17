@@ -12,7 +12,7 @@ from typing import Any
 
 from zallery import Integration
 from zallery.integration import Scheme
-from zallery.matplotlib import Matplotlib
+from zallery.integration.matplotlib import Matplotlib
 
 
 class Figures(Matplotlib):

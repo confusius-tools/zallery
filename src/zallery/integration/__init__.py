@@ -28,10 +28,10 @@ Scheme = Literal["light", "dark"]
 """A color scheme of the site."""
 
 STOCK: tuple[str, ...] = (
-    "zallery.matplotlib:Matplotlib",
-    "zallery.plotly:Plotly",
-    "zallery.pyvista:PyVista",
-    "zallery.xarray:Xarray",
+    "zallery.integration.matplotlib:Matplotlib",
+    "zallery.integration.plotly:Plotly",
+    "zallery.integration.pyvista:PyVista",
+    "zallery.integration.xarray:Xarray",
 )
 """Names of the integration classes Zallery ships, in the order they are used."""
 

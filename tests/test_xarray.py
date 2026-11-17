@@ -1,11 +1,11 @@
-"""Tests for zallery.xarray."""
+"""Tests for zallery.integration.xarray."""
 
 from __future__ import annotations
 
 import subprocess
 import sys
 
-from zallery.xarray import Xarray
+from zallery.integration.xarray import Xarray
 
 _VIEW = (
     "<pre class='xr-text-repr-fallback'>fallback</pre>"
@@ -14,7 +14,7 @@ _VIEW = (
 
 
 def test_importing_the_module_does_not_import_xarray() -> None:
-    code = "import sys, zallery.xarray; sys.exit('xarray' in sys.modules)"
+    code = "import sys, zallery.integration.xarray; sys.exit('xarray' in sys.modules)"
     assert subprocess.run([sys.executable, "-c", code], check=False).returncode == 0
 
 

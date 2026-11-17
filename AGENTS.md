@@ -12,7 +12,7 @@ user, and must not import or assume ConfUSIus.
 
 Zallery owns the mechanism: run once, take the light rendering, apply the retheme,
 take the dark rendering, restore, write both to the page. What changes between the
-two schemes is the business of integration classes (`integration.py`), one for
+two schemes is the business of integration classes (`integration/`), one for
 each display library. The core holds no color, colormap, template or CSS variable
 of an output's look: those are attributes of the stock classes, which a project
 subclasses.
@@ -44,9 +44,9 @@ of the example pages; it installs the `docs` group.
 Libraries only the examples import (pandas, xarray, plotly, pyvista, trame-pyvista,
 imageio) are in the `docs` dependency group, which `just gallery` installs. CI
 installs the default groups only, so `src` and `tests` must not import them. plotly
-is also in `dev`: tests draw real plotly figures, and `plotly.py` and `render.py`
-import it only for an example that has one. The pyvista tests run only where the
-`docs` group is installed.
+is also in `dev`: tests draw real plotly figures, and `integration/plotly.py` and
+`render.py` import it only for an example that has one. The pyvista tests run only
+where the `docs` group is installed.
 The site's own integration classes are in `tools/gallery.py`, named in
 `[tool.zallery]`: outside `docs/`, which Zensical publishes whole, `__pycache__`
 included.
@@ -62,11 +62,12 @@ src/zallery/
 ├── discover.py  # example and section discovery
 ├── cache.py     # cache key and directory
 ├── execute.py   # kernel launch (ports below the ephemeral range), nbclient run
-├── integration.py # Integration base class, loader, generic capture, kernel setup
-├── matplotlib.py  # Matplotlib: light rcParams, color and colormap swap
-├── plotly.py      # Plotly: template of each scheme
-├── pyvista.py     # PyVista: gallery mode, theme color swap, scenes
-├── xarray.py      # Xarray: CSS variables of each scheme
+├── integration/ # integration classes, one module for each display library
+│   ├── __init__.py   # Integration base class, loader, generic capture, kernel setup
+│   ├── matplotlib.py # Matplotlib: light rcParams, color and colormap swap
+│   ├── plotly.py     # Plotly: template of each scheme
+│   ├── pyvista.py    # PyVista: gallery mode, theme color swap, scenes
+│   └── xarray.py     # Xarray: CSS variables of each scheme
 ├── render.py    # executed notebook to Markdown page and images
 ├── thumbnail.py # HTML output to thumbnail PNGs, with a headless browser
 └── index.py     # card index page
@@ -126,10 +127,11 @@ classes when it loads the configuration.
   the builder runs when it loads the configuration: a bad one is a `ConfigError`.
   Colormap names are checked when a figure uses them: an example may register its
   own.
-- The stock integration modules are named after their libraries (`matplotlib.py`,
-  `plotly.py`, `pyvista.py`, `xarray.py`). They reach the library by absolute
-  import, and only `matplotlib.py` imports its library at module level: the others
-  must stay importable without it, in the builder and on CI.
+- The stock integration modules, in the `integration` package, are named after
+  their libraries (`matplotlib.py`, `plotly.py`, `pyvista.py`, `xarray.py`). They
+  reach the library by absolute import, and only `matplotlib.py` imports its
+  library at module level: the others must stay importable without it, in the
+  builder and on CI.
 - `Integration.retheme` takes its arguments by position only, so that a subclass
   names the object as it likes (`fig`, `plotter`).
 - The generic capture (`Integration._install`) wraps `lookup_by_type` of

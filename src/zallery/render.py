@@ -16,7 +16,7 @@ import nbformat
 
 from zallery._types import SCENE_MIME, HtmlThumbnail
 from zallery.integration import Integration
-from zallery.plotly import MIME as _PLOTLY_MIME
+from zallery.integration.plotly import MIME as _PLOTLY_MIME
 
 BINDER_BADGE = (
     "[![Launch in Binder](https://mybinder.org/badge_logo.svg)"
@@ -419,7 +419,7 @@ def _plotly_block(
     """Return HTML drawing a plotly figure in the color scheme of the page.
 
     The renderer changes nothing in the figures: the look of each scheme is what
-    the kernel gave them (see `zallery.plotly`).
+    the kernel gave them (see `zallery.integration.plotly`).
 
     Parameters
     ----------

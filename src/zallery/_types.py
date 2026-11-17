@@ -10,7 +10,7 @@ SCENE_MIME = "application/vnd.zallery.vtksz"
 """Mime type the kernel gives a pyvista scene exported for the browser.
 
 The payload is the base64 text of a `.vtksz` file, next to the still picture of the
-plotter in the same output (see `zallery.pyvista.PyVista`).
+plotter in the same output (see `zallery.integration.pyvista.PyVista`).
 """
 
 HtmlThumbnail = Callable[[str, str, Path, Path], bool]

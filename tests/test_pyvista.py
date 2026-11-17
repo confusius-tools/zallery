@@ -1,4 +1,4 @@
-"""Tests for zallery.pyvista."""
+"""Tests for zallery.integration.pyvista."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ import sys
 
 import pytest
 
-from zallery.pyvista import PyVista
+from zallery.integration.pyvista import PyVista
 
 needs_pyvista = pytest.mark.skipif(
     importlib.util.find_spec("pyvista") is None, reason="needs pyvista (the docs group)"
@@ -17,7 +17,7 @@ needs_pyvista = pytest.mark.skipif(
 
 
 def test_importing_the_module_does_not_import_pyvista() -> None:
-    code = "import sys, zallery.pyvista; sys.exit('pyvista' in sys.modules)"
+    code = "import sys, zallery.integration.pyvista; sys.exit('pyvista' in sys.modules)"
     assert subprocess.run([sys.executable, "-c", code], check=False).returncode == 0
 
 

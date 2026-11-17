@@ -1,4 +1,4 @@
-"""Tests for zallery.plotly."""
+"""Tests for zallery.integration.plotly."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ import plotly.io as pio
 import pytest
 
 from zallery.integration import Scheme
-from zallery.plotly import MIME, Plotly
+from zallery.integration.plotly import MIME, Plotly
 
 CLEAR = "rgba(0,0,0,0)"
 
@@ -31,7 +31,7 @@ def _look(integration: Plotly, fig: go.Figure, scheme: Scheme) -> ExitStack:
 
 
 def test_importing_the_module_does_not_import_plotly() -> None:
-    code = "import sys, zallery.plotly; sys.exit('plotly' in sys.modules)"
+    code = "import sys, zallery.integration.plotly; sys.exit('plotly' in sys.modules)"
     assert subprocess.run([sys.executable, "-c", code], check=False).returncode == 0
 
 

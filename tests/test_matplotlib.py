@@ -1,4 +1,4 @@
-"""Tests for zallery.matplotlib."""
+"""Tests for zallery.integration.matplotlib."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ from matplotlib import colormaps
 from matplotlib.figure import Figure
 
 from zallery.integration import Scheme
-from zallery.matplotlib import Matplotlib, swap_colors
+from zallery.integration.matplotlib import Matplotlib, swap_colors
 
 LIGHT_BG, DARK_BG = Matplotlib.background
 LIGHT_AXES, DARK_AXES = Matplotlib.axes_background
@@ -31,8 +31,8 @@ LIGHT_FG, DARK_FG = Matplotlib.foreground
 class _DerivedColormap(mcolors.ListedColormap):
     """A colormap built from another one, like ConfUSIus's `ThresholdedColormap`.
 
-    It exposes the original as `source` and rebuilds itself through
-    `with_source`, which is the shape `zallery.matplotlib.swap_cmaps` relies on.
+    It exposes the original as `source` and rebuilds itself through `with_source`,
+    which is the shape `zallery.integration.matplotlib.swap_cmaps` relies on.
     """
 
     def __init__(self, source: mcolors.Colormap) -> None:
