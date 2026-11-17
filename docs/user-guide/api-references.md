@@ -1,0 +1,55 @@
+# API references
+
+An example page can end with the list of the objects of your package that the
+example uses, each one a link to its API documentation. The API documentation of
+an object can then list the examples that use it.
+
+Switch the option on in `pyproject.toml`:
+
+```toml
+[project]
+name = "my-package"
+
+[tool.zallery]
+api_references = true
+```
+
+The page of an example that uses `my_package` then ends with a section "API used
+in this example", after the running time and the downloads.
+
+- The package is the `name` of `[project]`, as it is imported: `my-package` gives
+  `my_package`. Objects of other packages are not listed.
+- Zallery finds the objects on the running example: after each cell, it looks at
+  what the names in the cell hold. An object is listed under the module and the
+  class that define it, whatever name the example gives it. With
+  `import my_package as mp`, the cell `reader = mp.Reader(); reader.read()` lists
+  `Reader` and `Reader.read`.
+- Functions, classes, methods and properties are listed. A variable that holds an
+  instance lists its class.
+- A property is listed and not read, since reading one may compute or load data.
+- A method called on the result of a call, as in `mp.load(path).mean()`, is not
+  found: no name holds that result.
+- Switching the option on or off runs the examples again.
+
+## What the site needs
+
+The links are cross-references that
+[mkdocstrings](https://mkdocstrings.github.io/python/) resolves, so the site needs
+it, with the API documentation of the package.
+
+- An object that has API documentation becomes a link to it.
+- An object that has none shows as plain text. It gives no warning, also in a
+  strict build.
+- With the `backlinks` option of mkdocstrings, the documentation of each object
+  lists the pages that reference it, the examples among them:
+
+    ```toml
+    [project.plugins.mkdocstrings.handlers.python.options]
+    backlinks = "tree"
+    ```
+
+    An object used by the example "A first plot" then shows "Referenced by:
+    Examples, Matplotlib figures, A first plot, API used in this example".
+
+The heading of the section has the id `gallery-api`, and the list has the class
+`gallery-api`, for the styles of the site.

@@ -30,7 +30,9 @@ injected setup cell is `cell_index == 0`.
 """
 
 
-def _setup_source(integrations: Sequence[str], root: Path | None) -> str:
+def _setup_source(
+    integrations: Sequence[str], root: Path | None, api_package: str | None = None
+) -> str:
     """Return the code of the setup cell run before the example.
 
     Parameters
@@ -42,6 +44,9 @@ def _setup_source(integrations: Sequence[str], root: Path | None) -> str:
         Directory inserted at the front of the kernel's `sys.path` so that the
         classes of the project are importable. If not provided, the kernel's
         default path is used as is.
+    api_package : str, optional
+        Import name of the package whose objects each cell reports (see
+        `zallery.references.install`). If not provided, no cell reports any.
 
     Returns
     -------
@@ -55,6 +60,8 @@ def _setup_source(integrations: Sequence[str], root: Path | None) -> str:
         "from zallery.integration import setup_kernel",
         f"setup_kernel({list(integrations)!r})",
     ]
+    if api_package is not None:
+        lines += ["from zallery.references import install", f"install({api_package!r})"]
     return "\n".join(lines)
 
 
@@ -188,6 +195,7 @@ def execute_example(
     integrations: Sequence[str] | None = None,
     root: Path | None = None,
     abort_on_error: bool = False,
+    api_package: str | None = None,
 ) -> tuple[nbformat.NotebookNode, float]:
     """Execute one percent-format `.py` example end-to-end.
 
@@ -210,13 +218,18 @@ def execute_example(
         Whether to stop at the first cell that raises. When `False`, the error
         is an output of its cell and the cells after it run. A cell tagged
         `raises-exception` may raise in both cases.
+    api_package : str, optional
+        Import name of the package whose objects each cell reports. If not
+        provided, no cell reports any.
 
     Returns
     -------
     notebook : nbformat.NotebookNode
         The executed notebook, with the same cells as `source`. An output an
         integration rethemed carries its dark variant in its metadata, under
-        `metadata[<mime type>]["dark"]`.
+        `metadata[<mime type>]["dark"]`. With `api_package`, the last output of
+        a cell that uses objects of that package is their report (see
+        `zallery.references`).
     seconds : float
         Wall-clock execution time.
 
@@ -229,7 +242,9 @@ def execute_example(
     """
     notebook = read_example(source)
     setup_cell = nbformat.v4.new_code_cell(
-        _setup_source(STOCK if integrations is None else integrations, root),
+        _setup_source(
+            STOCK if integrations is None else integrations, root, api_package
+        ),
         metadata={"tags": ["_gallery_internal"]},
     )
     notebook.cells.insert(0, setup_cell)

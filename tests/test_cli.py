@@ -220,6 +220,31 @@ def test_cli_abort_on_error_stops_the_build_and_prints_the_traceback(
     assert not (examples / "index.md").exists()
 
 
+@pytest.mark.slow
+def test_cli_lists_the_api_objects_an_example_uses(tmp_path: Path) -> None:
+    project, examples = _make_project(tmp_path)
+    (project / "pyproject.toml").write_text(
+        '[project]\nname = "refs-cli-pkg"\n\n'
+        '[tool.zallery]\nexamples = "docs/examples"\napi_references = true\n'
+    )
+    (project / "refs_cli_pkg").mkdir()
+    (project / "refs_cli_pkg" / "__init__.py").write_text(
+        "def add(a, b):\n    return a + b\n"
+    )
+    (examples / "io" / "hello.py").write_text(
+        "# %% [markdown]\n# # Hello\n\n# %%\nimport refs_cli_pkg\n\n"
+        "# %%\nprint(refs_cli_pkg.add(1, 2))\n"
+    )
+
+    proc = _run(project)
+
+    assert proc.returncode == 0, f"stderr: {proc.stderr}\nstdout: {proc.stdout}"
+    markdown = (examples / "_built" / "io" / "hello.md").read_text(encoding="utf-8")
+    assert "## API used in this example { #gallery-api }" in markdown
+    assert '<autoref identifier="refs_cli_pkg.add" optional' in markdown
+    assert "<code>add</code></autoref>" in markdown
+
+
 def test_cli_returns_1_when_examples_dir_missing(tmp_path: Path) -> None:
     project = tmp_path / "project"
     project.mkdir()

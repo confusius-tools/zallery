@@ -71,6 +71,7 @@ src/zallery/
 │   ├── plotly.py     # Plotly: template of each scheme
 │   ├── pyvista.py    # PyVista: gallery mode, theme color swap, scenes
 │   └── xarray.py     # Xarray: CSS variables of each scheme
+├── references.py # the API objects a cell uses, reported from the kernel
 ├── render.py    # executed notebook to Markdown page and images
 ├── thumbnail.py # HTML output to thumbnail PNGs, with a headless browser
 └── index.py     # card index page
@@ -179,6 +180,22 @@ classes when it loads the configuration.
   exported for vtk.js (`last_vtksz`); the hook exports the dark one, and the page
   shows them in iframes of trame-vtk's standalone viewer, in a tab next to the
   picture.
+- API references (`api_references`): a `post_run_cell` hook in the kernel
+  (`references.install`) publishes the objects of the package a cell uses, as a
+  last output of the cell with a mime type of its own. `render.py` reads it and
+  shows no output for it.
+  - The page writes `<autoref>` elements, not `[name][identifier]`. With
+    `optional`, an object without API documentation shows as plain text; the
+    Markdown form is an unresolved reference, which shows as literal text and
+    fails a strict build.
+  - A backlink is recorded only with `backlink-type` and a `backlink-anchor`
+    that is the id of a heading of the page: hence the heading with the fixed
+    id `gallery-api`. An empty anchor, or the id of another element, records
+    none.
+  - An object is named by the module and class that define it (`__module__`,
+    `__qualname__`): mkdocstrings registers that path as an alias of the public
+    one. A property is named from its class with `inspect.getattr_static` and
+    never read.
 - With `--abort-on-error`, nbclient runs with `allow_errors=False`: it raises at
   the first failing cell, unless the cell is tagged `raises-exception`, and
   `execute_example` turns that into `ExampleError` after it has ruled out the

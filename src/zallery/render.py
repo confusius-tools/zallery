@@ -17,6 +17,7 @@ import nbformat
 from zallery._types import ANSI_ESCAPE, SCENE_MIME, HtmlThumbnail
 from zallery.integration import Integration
 from zallery.integration.plotly import MIME as _PLOTLY_MIME
+from zallery.references import MIME as _REFERENCES_MIME
 
 BINDER_BADGE = (
     "[![Launch in Binder](https://mybinder.org/badge_logo.svg)"
@@ -94,6 +95,55 @@ On a page opened directly, the `<script src>` of plotly.js before the first figu
 has run already. On a page reached by instant navigation, the theme inserts that
 element again, and it runs after the figure scripts: they wait for it.
 """
+
+
+_API_ANCHOR = "gallery-api"
+"""Id of the heading the API objects of an example are listed under."""
+
+_API_REFERENCE = (
+    '<autoref identifier="{identifier}" optional backlink-type="referenced-by"'
+    ' backlink-anchor="' + _API_ANCHOR + '"><code>{name}</code></autoref>'
+)
+"""A cross-reference to an API object, as mkdocs-autorefs reads it.
+
+Written as the element, not as `[name][identifier]`: `optional` makes an object
+without API documentation show as plain text, where the Markdown form is a warning
+that fails a strict build. A backlink needs the two `backlink-` attributes, and its
+anchor has to be the id of a heading of the page.
+"""
+
+
+def _api_references(notebook: nbformat.NotebookNode) -> str:
+    """Return the section that lists the API objects an example uses.
+
+    Parameters
+    ----------
+    notebook : nbformat.NotebookNode
+        The executed notebook, whose cells report the objects they use (see
+        `zallery.references`).
+
+    Returns
+    -------
+    str
+        Markdown of the section: a heading and one cross-reference for each
+        object, in the order of their full names. Empty when no cell reports any.
+    """
+    objects: dict[str, str] = {}
+    for cell in notebook.cells:
+        for output in cell.get("outputs", []):
+            reported = output.get("data", {}).get(_REFERENCES_MIME)
+            if isinstance(reported, dict):
+                objects.update(reported)
+    if not objects:
+        return ""
+    listing = " ".join(
+        _API_REFERENCE.format(identifier=escape(identifier), name=escape(str(name)))
+        for identifier, name in sorted(objects.items())
+    )
+    return (
+        f"## API used in this example {{ #{_API_ANCHOR} }}\n\n"
+        f'<p class="gallery-api">{listing}</p>\n'
+    )
 
 
 def _join_str_list(value: object) -> str | None:
@@ -897,6 +947,9 @@ def render_notebook(
         for extension, logo, color in _DOWNLOADS
     )
     parts.append(" ".join(buttons) + "\n")
+    api_references = _api_references(executed_notebook)
+    if api_references:
+        parts.append(api_references)
     if failed:
         parts.append(ERROR_MARK + "\n")
 

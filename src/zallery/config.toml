@@ -45,3 +45,10 @@ html_thumbnails = false
 
 # Stylesheets of the site applied to that picture.
 html_thumbnail_css = []
+
+# Whether an example page lists, at its end, the objects of the package of the
+# project that the example uses, as cross-references to their API documentation.
+# The package is the `name` of `[project]`, as it is imported. The site needs
+# mkdocstrings, which resolves the cross-references; with its `backlinks` option,
+# the documentation of an object then lists the examples that use it.
+api_references = false

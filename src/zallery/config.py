@@ -23,12 +23,16 @@ Keys (all optional: the value of a key the project leaves out is in the
 - `html_thumbnails`: whether a cell tagged `thumbnail` may give an HTML output as
   the thumbnail, pictured by a headless browser.
 - `html_thumbnail_css`: stylesheets of the site applied to that picture.
+- `api_references`: whether an example page lists the objects of the project's
+  package that the example uses, as cross-references to their API
+  documentation. The package is the `name` of `[project]`, as it is imported.
 """
 
 from __future__ import annotations
 
 import inspect
 import json
+import re
 import sys
 import tomllib
 from dataclasses import dataclass
@@ -50,7 +54,7 @@ follows `examples`, the second stays unset."""
 
 _KNOWN_KEYS = frozenset(
     {"examples", "built", "cache", "binder_repo", "integrations", "fingerprint"}
-    | {"html_thumbnails", "html_thumbnail_css"}
+    | {"html_thumbnails", "html_thumbnail_css", "api_references"}
 )
 """Keys the table may contain; anything else is a typo and rejected."""
 
@@ -88,6 +92,9 @@ class Config:
         Whether an HTML output may be pictured as an example's thumbnail.
     html_thumbnail_css : tuple[pathlib.Path, ...], default: ()
         Stylesheets of the site applied to those pictures.
+    api_package : str, optional
+        Import name of the package whose objects each example page lists. If
+        not provided, no page lists any.
     """
 
     root: Path
@@ -99,6 +106,7 @@ class Config:
     fingerprint_files: tuple[Path, ...]
     html_thumbnails: bool = False
     html_thumbnail_css: tuple[Path, ...] = ()
+    api_package: str | None = None
 
 
 def find_pyproject(start: Path) -> Path | None:
@@ -189,7 +197,8 @@ def load_config(start: Path) -> Config:
             "parents."
         )
     with pyproject.open("rb") as handle:
-        table = tomllib.load(handle)["tool"][_TABLE]
+        data = tomllib.load(handle)
+    table = data["tool"][_TABLE]
     if _REMOVED_KEYS & set(table):
         raise ConfigError(
             "hook, light and dark are no longer keys of [tool.zallery]: subclass an "
@@ -218,6 +227,20 @@ def load_config(start: Path) -> Config:
         raise ConfigError(
             f"No such html_thumbnail_css file in [tool.zallery]: {', '.join(missing)}."
         )
+    api_references = table["api_references"]
+    if not isinstance(api_references, bool):
+        raise ConfigError("api_references in [tool.zallery] must be true or false.")
+    api_package = None
+    if api_references:
+        project_name = data.get("project", {}).get("name")
+        if not isinstance(project_name, str) or not project_name:
+            raise ConfigError(
+                "api_references in [tool.zallery] needs the name of the project, in "
+                "[project] of pyproject.toml: its package is the one whose objects "
+                "are listed."
+            )
+        # A distribution `my-pkg` is imported as `my_pkg`.
+        api_package = re.sub(r"[-_.]+", "_", project_name).lower()
     return Config(
         root=root,
         examples=examples,
@@ -228,6 +251,7 @@ def load_config(start: Path) -> Config:
         fingerprint_files=tuple(root / p for p in table["fingerprint"]),
         html_thumbnails=html_thumbnails,
         html_thumbnail_css=html_thumbnail_css,
+        api_package=api_package,
     )
 
 
@@ -257,6 +281,7 @@ def deps_fingerprint(config: Config) -> str:
                 "binder_repo": config.binder_repo,
                 "integrations": [name(type(i)) for i in config.integrations],
                 "html_thumbnails": config.html_thumbnails,
+                "api_package": config.api_package,
             },
             sort_keys=True,
         )

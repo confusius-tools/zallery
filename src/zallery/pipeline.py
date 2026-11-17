@@ -170,6 +170,7 @@ def _build_one(
     root: Path | None = None,
     html_thumbnail: HtmlThumbnail | None = None,
     abort_on_error: bool = False,
+    api_package: str | None = None,
 ) -> RenderedExample:
     """Build one example and return its rendered metadata.
 
@@ -210,6 +211,9 @@ def _build_one(
         `zallery.render.render_notebook`.
     abort_on_error : bool, default: False
         Whether a cell that raises stops the build (see `build_gallery`).
+    api_package : str, optional
+        Import name of the package whose objects the page lists (see
+        `build_gallery`).
 
     Returns
     -------
@@ -303,6 +307,7 @@ def _build_one(
         integrations=[name(type(integration)) for integration in integrations],
         root=root,
         abort_on_error=abort_on_error,
+        api_package=api_package,
     )
 
     if not interactive:
@@ -368,6 +373,7 @@ def build_gallery(
     integrations: Sequence[Integration] | None = None,
     html_thumbnail: HtmlThumbnail | None = None,
     abort_on_error: bool = False,
+    api_package: str | None = None,
 ) -> None:
     """Run the full pipeline and write the gallery to disk.
 
@@ -414,6 +420,10 @@ def build_gallery(
         goes on. When `True`, an example to run whose cached result shows an
         error is run again. A cell tagged `raises-exception` may raise in both
         cases.
+    api_package : str, optional
+        Import name of the package whose objects each example page lists at
+        its end, as cross-references to their API documentation (see
+        `zallery.references`). If not provided, no page lists any.
 
     Raises
     ------
@@ -457,6 +467,7 @@ def build_gallery(
                     root=repo_root,
                     html_thumbnail=html_thumbnail,
                     abort_on_error=abort_on_error,
+                    api_package=api_package,
                     built_dir=built_dir,
                     cache_root=cache_root,
                     deps_fingerprint=deps_fingerprint,

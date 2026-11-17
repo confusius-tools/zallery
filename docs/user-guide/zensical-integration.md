@@ -24,8 +24,8 @@ Zallery writes Markdown pages; the Zensical site provides the rest, in
   `gallery-rich-output` around cell outputs, with `gallery-html-light` or
   `gallery-html-dark` on an HTML output that has a variant for each scheme,
   `gallery-plotly` on plotly figures, `gallery-scene` on PyVista scenes,
-  `gallery-binder` on the Binder badge and `gallery-download` on the two download
-  badges. This repository's
+  `gallery-binder` on the Binder badge, `gallery-download` on the two download
+  badges and `gallery-api` on the list of [API references](api-references.md). This repository's
   [`zensical.toml`](https://github.com/confusius-tools/zallery/blob/main/zensical.toml)
   and
   [stylesheet](https://github.com/confusius-tools/zallery/blob/main/docs/stylesheets/extra.css)

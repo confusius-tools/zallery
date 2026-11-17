@@ -72,6 +72,7 @@ def test_the_shipped_table_is_the_configuration_of_an_empty_table(
             relative, empty.root
         )
     assert copied.binder_repo == empty.binder_repo
+    assert copied.api_package == empty.api_package
     assert copied.html_thumbnails == empty.html_thumbnails
     assert copied.html_thumbnail_css == empty.html_thumbnail_css
     assert [type(i) for i in copied.integrations] == [
@@ -286,3 +287,52 @@ def test_deps_fingerprint_tracks_the_html_thumbnail_settings(tmp_path: Path) -> 
     restyled = deps_fingerprint(load_config(tmp_path))
 
     assert len({off, on, restyled}) == 3
+
+
+def _write_project(root: Path, table: str, project: str = "") -> None:
+    root.mkdir(parents=True, exist_ok=True)
+    (root / "pyproject.toml").write_text(f"{project}\n[tool.zallery]\n{table}\n")
+
+
+def test_load_config_names_no_api_package_by_default(tmp_path: Path) -> None:
+    _write_project(tmp_path, "", '[project]\nname = "my-pkg"\n')
+
+    assert load_config(tmp_path).api_package is None
+
+
+def test_load_config_names_the_package_of_the_project_for_api_references(
+    tmp_path: Path,
+) -> None:
+    _write_project(
+        tmp_path, "api_references = true", '[project]\nname = "My-Pkg.core"\n'
+    )
+
+    # The import name of a distribution named as PyPI shows it.
+    assert load_config(tmp_path).api_package == "my_pkg_core"
+
+
+@pytest.mark.parametrize(
+    ("table", "project", "message"),
+    [
+        ('api_references = "yes"', '[project]\nname = "x"\n', "true or false"),
+        ("api_references = true", "", r"name.*\[project\]"),
+    ],
+    ids=["not a boolean", "no project name"],
+)
+def test_load_config_rejects_bad_api_references(
+    tmp_path: Path, table: str, project: str, message: str
+) -> None:
+    _write_project(tmp_path, table, project)
+
+    with pytest.raises(ConfigError, match=f"api_references.*{message}"):
+        load_config(tmp_path)
+
+
+def test_deps_fingerprint_tracks_api_references(tmp_path: Path) -> None:
+    project = '[project]\nname = "x"\n'
+    _write_project(tmp_path, "", project)
+    off = deps_fingerprint(load_config(tmp_path))
+
+    _write_project(tmp_path, "api_references = true", project)
+
+    assert deps_fingerprint(load_config(tmp_path)) != off

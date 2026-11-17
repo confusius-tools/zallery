@@ -993,3 +993,78 @@ def test_render_hands_an_html_with_one_look_twice_for_the_thumbnail(
     )
 
     assert thumbnailer.seen == thumbnailer.seen_dark == ["<p>one</p>"]
+
+
+_REFERENCES_MIME = "application/vnd.zallery.references+json"
+
+
+def _references(objects: dict[str, str]) -> nbformat.NotebookNode:
+    return nbformat.v4.new_output(
+        output_type="display_data", data={_REFERENCES_MIME: objects}
+    )
+
+
+def _autoref(identifier: str, name: str) -> str:
+    return (
+        f'<autoref identifier="{identifier}" optional backlink-type="referenced-by"'
+        f' backlink-anchor="gallery-api"><code>{name}</code></autoref>'
+    )
+
+
+def test_render_lists_the_api_objects_the_example_uses(tmp_path: Path) -> None:
+    nb = _make_nb()
+    nb.cells[1].outputs.append(
+        _references({"pkg.io.Reader.read": "Reader.read", "pkg._impl.load": "load"})
+    )
+    nb.cells[2].outputs.append(
+        _references({"pkg._impl.load": "load", "pkg.io.Reader": "Reader"})
+    )
+
+    md_path, _ = render_notebook(
+        nb, nb, out_dir=tmp_path, base_name="ex", runtime_seconds=1.0
+    )
+
+    md = md_path.read_text()
+    # Once each, in the order of their names, after the downloads.
+    listing = " ".join(
+        [
+            _autoref("pkg._impl.load", "load"),
+            _autoref("pkg.io.Reader", "Reader"),
+            _autoref("pkg.io.Reader.read", "Reader.read"),
+        ]
+    )
+    assert md.endswith(
+        f"{_PY_BADGE} {_IPYNB_BADGE}\n\n"
+        "## API used in this example { #gallery-api }\n\n"
+        f'<p class="gallery-api">{listing}</p>\n'
+    )
+    # The report is no output of its cell: the rest of the page is unchanged.
+    plain_path, _ = render_notebook(
+        _make_nb(), _make_nb(), out_dir=tmp_path, base_name="ex", runtime_seconds=1.0
+    )
+    assert md.startswith(plain_path.read_text())
+
+
+def test_render_escapes_the_names_of_the_api_objects(tmp_path: Path) -> None:
+    nb = _make_nb()
+    nb.cells[1].outputs.append(_references({'pkg."odd"<name>': "A<b>&c"}))
+
+    md_path, _ = render_notebook(
+        nb, nb, out_dir=tmp_path, base_name="ex", runtime_seconds=1.0
+    )
+
+    md = md_path.read_text()
+    assert 'identifier="pkg.&quot;odd&quot;&lt;name&gt;"' in md
+    assert "<code>A&lt;b&gt;&amp;c</code>" in md
+
+
+def test_render_writes_no_api_section_without_api_objects(tmp_path: Path) -> None:
+    nb = _make_nb()
+
+    md_path, _ = render_notebook(
+        nb, nb, out_dir=tmp_path, base_name="ex", runtime_seconds=1.0
+    )
+
+    md = md_path.read_text()
+    assert "gallery-api" not in md
+    assert md.rstrip().splitlines()[-1] == f"{_PY_BADGE} {_IPYNB_BADGE}"

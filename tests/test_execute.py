@@ -343,3 +343,48 @@ def test_execute_reports_a_failed_kernel_setup_as_such_when_aborting(
 
     with pytest.raises(RuntimeError, match="(?s)Gallery kernel setup failed.*no theme"):
         execute_example(src, timeout=60, abort_on_error=True)
+
+
+_REFERENCES_MIME = "application/vnd.zallery.references+json"
+
+
+def _write_package(root: Path, name: str) -> None:
+    (root / name).mkdir()
+    (root / name / "__init__.py").write_text(f"from {name}._impl import add\n")
+    (root / name / "_impl.py").write_text("def add(a, b):\n    return a + b\n")
+
+
+@pytest.mark.slow
+def test_execute_reports_the_objects_of_the_package_each_cell_uses(
+    tmp_path: Path,
+) -> None:
+    _write_package(tmp_path, "refs_kernel_pkg")
+    src = tmp_path / "ex.py"
+    src.write_text(
+        "# %%\nimport json\nimport refs_kernel_pkg as rk\n\n"
+        "# %%\nprint(rk.add(1, 2))\n\n"
+        "# %%\nprint(json.dumps([1]))\n"
+    )
+
+    notebook, _ = execute_example(
+        src, timeout=60, root=tmp_path, api_package="refs_kernel_pkg"
+    )
+
+    reported = [
+        [out["data"][_REFERENCES_MIME] for out in cell.outputs if "data" in out]
+        for cell in notebook.cells
+    ]
+    assert reported == [[], [{"refs_kernel_pkg._impl.add": "add"}], []]
+    # The report comes after the outputs of the cell itself.
+    assert notebook.cells[1].outputs[0]["text"] == "3\n"
+
+
+@pytest.mark.slow
+def test_execute_reports_no_object_without_a_package(tmp_path: Path) -> None:
+    _write_package(tmp_path, "refs_kernel_off_pkg")
+    src = tmp_path / "ex.py"
+    src.write_text("# %%\nimport refs_kernel_off_pkg as rk\nprint(rk.add(1, 2))\n")
+
+    notebook, _ = execute_example(src, timeout=60, root=tmp_path)
+
+    assert [out["output_type"] for out in notebook.cells[0].outputs] == ["stream"]

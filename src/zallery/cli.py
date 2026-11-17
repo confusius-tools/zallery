@@ -143,6 +143,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             integrations=config.integrations,
             html_thumbnail=html_thumbnail,
             abort_on_error=args.abort_on_error,
+            api_package=config.api_package,
         )
     except ValueError as exc:
         print(exc, file=sys.stderr)

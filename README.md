@@ -112,6 +112,8 @@ The user guide has one page for each topic:
   pictures, GIFs and interactive scenes.
 - [HTML thumbnails](https://confusius-tools.github.io/zallery/user-guide/html-thumbnails/):
   an HTML output or a plotly figure on the index card.
+- [API references](https://confusius-tools.github.io/zallery/user-guide/api-references/):
+  links from an example to the API documentation of what it uses, and back.
 - [Configuration](https://confusius-tools.github.io/zallery/user-guide/configuration/):
   the keys of `[tool.zallery]`, the Binder badges and the cache.
 - [Zensical integration](https://confusius-tools.github.io/zallery/user-guide/zensical-integration/):

@@ -18,6 +18,7 @@ nav = [
         { "Plotly figures" = "user-guide/plotly-figures.md" },
         { "PyVista plots" = "user-guide/pyvista-plots.md" },
         { "HTML thumbnails" = "user-guide/html-thumbnails.md" },
+        { "API references" = "user-guide/api-references.md" },
         { "Configuration" = "user-guide/configuration.md" },
         { "Zensical integration" = "user-guide/zensical-integration.md" },
     ]},
