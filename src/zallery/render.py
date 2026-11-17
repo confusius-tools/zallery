@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import base64
+import importlib
+import importlib.metadata
 import json
 import re
 import shutil
@@ -444,13 +446,12 @@ def _write_scene_viewer(out_dir: Path) -> str:
     str
         The file name, which holds the trame-vtk version.
     """
-    # Imported here, for galleries with no pyvista scene.
-    from importlib.metadata import version
+    # Imported here, for galleries with no pyvista scene, and by name: trame-vtk is
+    # not a dependency, so a type checker may run where it is not installed.
+    viewer = importlib.import_module("trame_vtk.tools.vtksz2html").HTML_VIEWER_PATH
 
-    from trame_vtk.tools.vtksz2html import HTML_VIEWER_PATH
-
-    name = f"vtk-viewer-{version('trame-vtk')}.html"
-    shutil.copyfile(HTML_VIEWER_PATH, out_dir / name)
+    name = f"vtk-viewer-{importlib.metadata.version('trame-vtk')}.html"
+    shutil.copyfile(viewer, out_dir / name)
     return name
 
 

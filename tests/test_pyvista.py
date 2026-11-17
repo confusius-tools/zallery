@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import importlib.util
 import os
 import subprocess
 import sys
@@ -10,10 +9,6 @@ import sys
 import pytest
 
 from zallery.integration.pyvista import PyVista
-
-needs_pyvista = pytest.mark.skipif(
-    importlib.util.find_spec("pyvista") is None, reason="needs pyvista (the docs group)"
-)
 
 
 def test_importing_the_module_does_not_import_pyvista() -> None:
@@ -31,9 +26,8 @@ def test_setup_keeps_a_variable_the_project_set(
     assert os.environ["PYVISTA_BUILDING_GALLERY"] == "true"
 
 
-@needs_pyvista
 def test_retheme_swaps_the_theme_colors_and_restores_them() -> None:
-    import pyvista
+    pyvista = pytest.importorskip("pyvista", reason="needs the docs group")
 
     plotter = pyvista.Plotter(off_screen=True)
     plotter.add_mesh(pyvista.Sphere(), show_edges=True)
@@ -51,9 +45,8 @@ def test_retheme_swaps_the_theme_colors_and_restores_them() -> None:
         plotter.close()
 
 
-@needs_pyvista
 def test_an_unknown_theme_names_the_attribute() -> None:
-    import pyvista
+    pyvista = pytest.importorskip("pyvista", reason="needs the docs group")
 
     class Bad(PyVista):
         themes = ("DocumentTheme", "NoSuchTheme")
@@ -66,9 +59,8 @@ def test_an_unknown_theme_names_the_attribute() -> None:
         plotter.close()
 
 
-@needs_pyvista
 def test_a_subclass_may_name_another_dark_theme() -> None:
-    import pyvista
+    pyvista = pytest.importorskip("pyvista", reason="needs the docs group")
 
     class ParaView(PyVista):
         themes = ("DocumentTheme", "ParaViewTheme")
