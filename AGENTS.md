@@ -17,7 +17,9 @@ each display library. The core holds no color, colormap, template or CSS variabl
 of an output's look: those are attributes of the stock classes, which a project
 subclasses.
 
-`README.md` is the user documentation: keep it in sync with behavior changes.
+The user documentation is `README.md` (installation, quick start, command line)
+and the pages of `docs/user-guide/`, one for each topic: keep them in sync with
+behavior changes.
 
 ## Commands
 
@@ -37,8 +39,9 @@ just serve-docs    # gallery, then serve the docs locally
 Run a single test: `uv run pytest tests/test_matplotlib.py::test_name`.
 
 The docs site (`zensical.toml`, `docs/`) is small on purpose: the home page includes
-`README.md`, and `docs/examples/` is a gallery built by Zallery itself. Each example
-there shows one feature; a new example also needs a `nav` entry in `zensical.toml`.
+`README.md`, `docs/user-guide/` is the user guide, and `docs/examples/` is a gallery
+built by Zallery itself. Each example there shows one feature; a new example or
+guide page also needs a `nav` entry in `zensical.toml`.
 `binder/Dockerfile` is the environment mybinder.org builds for the Binder badges
 of the example pages; it installs the `docs` group.
 Libraries only the examples import (pandas, xarray, plotly, pyvista, trame-pyvista,

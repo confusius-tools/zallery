@@ -194,7 +194,7 @@ def load_config(start: Path) -> Config:
         raise ConfigError(
             "hook, light and dark are no longer keys of [tool.zallery]: subclass an "
             "integration class and name it in integrations (see Integrations in "
-            "the README)."
+            "the user guide)."
         )
     unknown = sorted(set(table) - _KNOWN_KEYS)
     if unknown:

@@ -225,7 +225,7 @@ def test_load_config_points_removed_keys_to_integrations(
 ) -> None:
     _write_pyproject(tmp_path, table)
 
-    with pytest.raises(ConfigError, match="integrations"):
+    with pytest.raises(ConfigError, match="integrations.*user guide"):
         load_config(tmp_path)
 
 
