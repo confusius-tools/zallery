@@ -34,7 +34,9 @@ integrations = []
 # - the Zallery sources;
 # - the module of each integration class of the project;
 # - the `html_thumbnail_css` stylesheets;
-# - with `html_thumbnails` on, whether a browser was found.
+# - with `html_thumbnails` on, whether the build found a browser to picture the
+#   HTML thumbnails with. Examples built without one are built again once a
+#   browser is there.
 fingerprint = ["uv.lock"]
 
 # Whether an HTML output may be the thumbnail of an example, pictured by a
