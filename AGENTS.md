@@ -57,6 +57,11 @@ installs the default groups only, so `src` and `tests` must not import them. plo
 is also in `dev`: tests draw real plotly figures, and `integration/plotly.py` and
 `render.py` import it only for an example that has one. The pyvista tests run only
 where the `docs` group is installed.
+The type checker runs on CI without the `docs` group too: reach a library of that
+group by name (`importlib.import_module`, `pytest.importorskip`, `sys.modules`),
+not with an import statement, which does not resolve there. A local environment
+that has the group hides the error: check as CI does with
+`uv run --isolated ty check`.
 The site's own integration classes are in `tools/gallery.py`, named in
 `[tool.zallery]`: outside `docs/`, which Zensical publishes whole, `__pycache__`
 included.
