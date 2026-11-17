@@ -28,8 +28,8 @@ pip install zallery
 
 ## Quick start
 
-Add a `[tool.zallery]` table to the project's `pyproject.toml` (an empty table is
-enough, every key has a default):
+Add a `[tool.zallery]` section to the project's `pyproject.toml` (an empty section is
+enough):
 
 ```toml
 [tool.zallery]
