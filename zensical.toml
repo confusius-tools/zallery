@@ -1,5 +1,6 @@
 [project]
 site_name = "Zallery"
+site_url = "https://zallery.confusius.tools/"
 site_description = "Light-and-dark example galleries for Zensical docs, built from jupytext scripts."
 site_author = "ConfUSIus developers"
 copyright = "Copyright © 2026 The ConfUSIus developers"

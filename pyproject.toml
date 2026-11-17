@@ -35,6 +35,7 @@ dependencies = [
 ]
 
 [project.urls]
+Documentation = "https://zallery.confusius.tools/"
 Repository = "https://github.com/confusius-tools/zallery"
 Issues = "https://github.com/confusius-tools/zallery/issues"
 

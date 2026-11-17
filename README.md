@@ -100,23 +100,23 @@ zallery path/to/example_1.py path/to/example_2.py
 
 The user guide has one page for each topic:
 
-- [Writing examples](https://confusius-tools.github.io/zallery/user-guide/writing-examples/):
+- [Writing examples](https://zallery.confusius.tools/user-guide/writing-examples/):
   where examples live, their titles and order, and the cell tags.
-- [Light and dark figures](https://confusius-tools.github.io/zallery/user-guide/light-and-dark-figures/):
+- [Light and dark figures](https://zallery.confusius.tools/user-guide/light-and-dark-figures/):
   how a matplotlib figure gets its two looks, and how to change the colors.
-- [Integrations](https://confusius-tools.github.io/zallery/user-guide/integrations/):
+- [Integrations](https://zallery.confusius.tools/user-guide/integrations/):
   the classes that say what changes between the two color schemes, and how to write one.
-- [Plotly figures](https://confusius-tools.github.io/zallery/user-guide/plotly-figures/):
+- [Plotly figures](https://zallery.confusius.tools/user-guide/plotly-figures/):
   interactive figures in both color schemes.
-- [PyVista plots](https://confusius-tools.github.io/zallery/user-guide/pyvista-plots/):
+- [PyVista plots](https://zallery.confusius.tools/user-guide/pyvista-plots/):
   pictures, GIFs and interactive scenes.
-- [HTML thumbnails](https://confusius-tools.github.io/zallery/user-guide/html-thumbnails/):
+- [HTML thumbnails](https://zallery.confusius.tools/user-guide/html-thumbnails/):
   an HTML output or a plotly figure on the index card.
-- [API references](https://confusius-tools.github.io/zallery/user-guide/api-references/):
+- [API references](https://zallery.confusius.tools/user-guide/api-references/):
   links from an example to the API documentation of what it uses, and back.
-- [Configuration](https://confusius-tools.github.io/zallery/user-guide/configuration/):
+- [Configuration](https://zallery.confusius.tools/user-guide/configuration/):
   the keys of `[tool.zallery]`, the Binder badges and the cache.
-- [Zensical integration](https://confusius-tools.github.io/zallery/user-guide/zensical-integration/):
+- [Zensical integration](https://zallery.confusius.tools/user-guide/zensical-integration/):
   what the site has to provide.
 
 ## Relationship to ConfUSIus
