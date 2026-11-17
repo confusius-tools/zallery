@@ -12,9 +12,18 @@ values = [1, 2, 3]
 print(sum(values))
 
 # %% [markdown]
-# This cell fails on purpose:
+# This cell fails on purpose. Its `raises-exception` tag says that the error is
+# expected: a build run with `--abort-on-error` stops at the first cell that
+# raises, but not at this one.
+#
+# ```python
+# # %% tags=["raises-exception"]
+# raise ValueError("This example fails on purpose.")
+# ```
+#
+# This renders as:
 
-# %%
+# %% tags=["raises-exception"]
 raise ValueError("This example fails on purpose.")
 
 # %% [markdown]
