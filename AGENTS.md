@@ -199,6 +199,10 @@ classes when it loads the configuration.
     that is the id of a heading of the page: hence the heading with the fixed
     id `gallery-api`. An empty anchor, or the id of another element, records
     none.
+  - This site shows only the examples among the backlinks: the template
+    `tools/mkdocstrings/python/material/backlinks.html.jinja` keeps the ones
+    whose anchor is `gallery-api`. That id is a contract between `render.py`
+    and the template.
   - An object is named by the module and class that define it (`__module__`,
     `__qualname__`): mkdocstrings registers that path as an alias of the public
     one. A property is named from its class with `inspect.getattr_static` and

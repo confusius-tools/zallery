@@ -55,3 +55,25 @@ it, with the API documentation of the package.
 
 The heading of the section has the id `gallery-api`, and the list has the class
 `gallery-api`, for the styles of the site.
+
+## Only the examples
+
+mkdocstrings lists every reference to an object: those of the user guide and of
+other docstrings too. To list only the examples, give mkdocstrings a template of
+your own for the backlinks:
+
+```toml
+[project.plugins.mkdocstrings]
+custom_templates = "tools/mkdocstrings"
+```
+
+The template is the file `python/material/backlinks.html.jinja` in that directory.
+The
+[template of this repository](https://github.com/confusius-tools/zallery/blob/main/tools/mkdocstrings/python/material/backlinks.html.jinja)
+is a working setup:
+
+- It keeps the references whose anchor is `gallery-api`, the id of the heading
+  that Zallery writes, and leaves out every other one.
+- It shows each as the title of its example, under "Used in the examples". The
+  link opens the example at its top.
+- An object that no example uses shows nothing.

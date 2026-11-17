@@ -1,0 +1,34 @@
+{#- Backlinks of an API object: only the examples that use it.
+
+mkdocstrings lists every page that references an object. This template keeps the
+references that Zallery writes at the end of an example page, under the heading
+with the id `gallery-api` (see `api_references` in `[tool.zallery]`), and shows
+each as the title of its example.
+
+Context:
+  backlinks (Mapping[str, Iterable[Backlink]]): The backlinks to render.
+  config (dict): The configuration options.
+-#}
+{% if config.backlinks %}
+  {% set ns = namespace(examples=[]) %}
+  {% for backlink_type, backlink_list in backlinks | dictsort %}
+    {% for backlink in backlink_list %}
+      {% set crumbs = backlink.crumbs | list %}
+      {#- The last crumb is the heading of the list, the one before it the title
+      of the example. -#}
+      {% if crumbs | length > 1 and (crumbs | last).url and (crumbs | last).url.endswith("#gallery-api") %}
+        {% set ns.examples = ns.examples + [crumbs[-2]] %}
+      {% endif %}
+    {% endfor %}
+  {% endfor %}
+  {% if ns.examples %}
+    <div class="doc doc-backlinks">
+      <b class="doc doc-backlink-type">Used in the examples:</b>
+      <ul class="doc doc-backlink-list">
+        {% for crumb in ns.examples | sort(attribute="title") %}
+          <li class="doc doc-backlink"><a href="{{ crumb.url }}">{{ crumb.title | safe }}</a></li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+{% endif %}
