@@ -2,16 +2,24 @@
 
 from __future__ import annotations
 
+from importlib.resources import files
 from pathlib import Path
 
 import pytest
 
+import zallery.config
 from zallery.config import Config, ConfigError, deps_fingerprint, load_config
 
 
 def _write_pyproject(root: Path, table: str) -> None:
     root.mkdir(parents=True, exist_ok=True)
     (root / "pyproject.toml").write_text(f"[tool.zallery]\n{table}\n")
+
+
+def _under(paths: Path | tuple[Path, ...], root: Path) -> tuple[Path, ...]:
+    """Return one path or several, each relative to `root`."""
+    paths = (paths,) if isinstance(paths, Path) else paths
+    return tuple(path.relative_to(root) for path in paths)
 
 
 def test_load_config_resolves_paths_under_the_project_root(tmp_path: Path) -> None:
@@ -43,6 +51,45 @@ def test_load_config_defaults(tmp_path: Path) -> None:
     assert config.fingerprint_files == (tmp_path.resolve() / "uv.lock",)
     assert config.html_thumbnails is False
     assert config.html_thumbnail_css == ()
+
+
+def test_the_shipped_table_is_the_configuration_of_an_empty_table(
+    tmp_path: Path,
+) -> None:
+    shipped = files("zallery").joinpath("config.toml").read_text(encoding="utf-8")
+    (tmp_path / "empty").mkdir()
+    (tmp_path / "empty" / "pyproject.toml").write_text("[tool.zallery]\n")
+    (tmp_path / "copied").mkdir()
+    (tmp_path / "copied" / "pyproject.toml").write_text(shipped, encoding="utf-8")
+
+    empty = load_config(tmp_path / "empty")
+    copied = load_config(tmp_path / "copied")
+
+    for field in ("examples", "built", "cache", "fingerprint_files"):
+        relative = getattr(empty, field)
+        assert relative != empty.root
+        assert _under(getattr(copied, field), copied.root) == _under(
+            relative, empty.root
+        )
+    assert copied.binder_repo == empty.binder_repo
+    assert copied.html_thumbnails == empty.html_thumbnails
+    assert copied.html_thumbnail_css == empty.html_thumbnail_css
+    assert [type(i) for i in copied.integrations] == [
+        type(i) for i in empty.integrations
+    ]
+
+
+def test_a_key_the_project_leaves_out_takes_the_shipped_default(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setitem(zallery.config.DEFAULTS, "cache", "elsewhere")
+    monkeypatch.setitem(zallery.config.DEFAULTS, "fingerprint", ["other.lock"])
+    _write_pyproject(tmp_path, 'fingerprint = ["mine.lock"]\n')
+
+    config = load_config(tmp_path)
+
+    assert config.cache == tmp_path.resolve() / "elsewhere"
+    assert config.fingerprint_files == (tmp_path.resolve() / "mine.lock",)
 
 
 def test_load_config_searches_parent_directories(tmp_path: Path) -> None:

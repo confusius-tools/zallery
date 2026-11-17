@@ -398,18 +398,20 @@ with a headless browser, once for each color scheme.
 
 Zallery reads the `[tool.zallery]` table of the nearest `pyproject.toml` above the
 working directory; relative paths resolve against that file's directory. All keys
-are optional:
+are optional. The value of a key the project leaves out is in
+[`config.toml`](https://github.com/confusius-tools/zallery/blob/main/src/zallery/config.toml),
+which ships with Zallery.
 
-| Key | Default | Meaning |
-|---|---|---|
-| `examples` | `docs/examples` | Directory of example sections. |
-| `built` | `<examples>/_built` | Where rendered pages and images go. |
-| `cache` | `.gallery-cache` | Execution/render cache. |
-| `binder_repo` | unset | `owner/repo` for the Binder launch badges. |
-| `integrations` | `[]` | Integration classes of the project, as `"module:Class"` names: see [Integrations](#integrations). |
-| `fingerprint` | `["uv.lock"]` | Files whose change invalidates the cache. |
-| `html_thumbnails` | `false` | Whether an HTML output may be an example's thumbnail: see [HTML thumbnails](#html-thumbnails). |
-| `html_thumbnail_css` | `[]` | Stylesheets of the site applied to HTML thumbnails. |
+| Key | Meaning |
+|---|---|
+| `examples` | Directory of example sections. |
+| `built` | Where rendered pages and images go. If not set, the `_built` directory in `examples`. |
+| `cache` | Execution/render cache. |
+| `binder_repo` | `owner/repo` for the Binder launch badges. If not set, no Binder badge. |
+| `integrations` | Integration classes of the project, as `"module:Class"` names: see [Integrations](#integrations). |
+| `fingerprint` | Files whose change invalidates the cache. |
+| `html_thumbnails` | Whether an HTML output may be an example's thumbnail: see [HTML thumbnails](#html-thumbnails). |
+| `html_thumbnail_css` | Stylesheets of the site applied to HTML thumbnails. |
 
 Each example page ends with two badges that download the example, as a `.py`
 script and as an `.ipynb` notebook. Their images come from

@@ -57,6 +57,7 @@ included.
 src/zallery/
 ├── cli.py       # `zallery` console script
 ├── config.py    # `[tool.zallery]` lookup, cache fingerprint
+├── config.toml  # default of each `[tool.zallery]` key, read by config.py
 ├── pipeline.py  # build_gallery: discover, cache, execute, render, index
 ├── discover.py  # example and section discovery
 ├── cache.py     # cache key and directory

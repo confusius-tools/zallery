@@ -6,20 +6,22 @@ directory holding that `pyproject.toml`, which is also the project root the kern
 and the builder get on their `sys.path` so the integration classes of the project
 import.
 
-Keys (all optional):
+Keys (all optional: the value of a key the project leaves out is in the
+`config.toml` next to this module, see `DEFAULTS`):
 
-- `examples`: directory of example sections, default `docs/examples`.
-- `built`: where rendered pages go, default `<examples>/_built`.
-- `cache`: execution/render cache directory, default `.gallery-cache`.
+- `examples`: directory of example sections.
+- `built`: where rendered pages go. If not set, the `_built` directory in
+  `examples`.
+- `cache`: execution/render cache directory.
 - `binder_repo`: `owner/repo` slug for the Binder launch badges; no badges if unset.
 - `integrations`: integration classes of the project, as `"module:Class"`
   names. A class that subclasses one Zallery ships takes its place; any other is
   added (see `zallery.integration`).
-- `fingerprint`: files whose content invalidates the cache when it changes,
-  default `["uv.lock"]`. The `zallery` sources, the modules of the integration
-  classes of the project and the table itself are always part of the fingerprint.
+- `fingerprint`: files whose content invalidates the cache when it changes. The
+  `zallery` sources, the modules of the integration classes of the project and
+  the table itself are always part of the fingerprint.
 - `html_thumbnails`: whether a cell tagged `thumbnail` may give an HTML output as
-  the thumbnail, pictured by a headless browser; default `false`.
+  the thumbnail, pictured by a headless browser.
 - `html_thumbnail_css`: stylesheets of the site applied to that picture.
 """
 
@@ -31,12 +33,20 @@ import sys
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import zallery
 from zallery.integration import STOCK, Integration, load, name, resolve
 
 _TABLE = "zallery"
 """Name of the table under `[tool]`."""
+
+DEFAULTS: dict[str, Any] = tomllib.loads(
+    Path(__file__).with_name("config.toml").read_text(encoding="utf-8")
+)["tool"][_TABLE]
+"""Value of each key a project leaves out of the table, read from the
+`config.toml` Zallery ships. `built` and `binder_repo` have none there: the first
+follows `examples`, the second stays unset."""
 
 _KNOWN_KEYS = frozenset(
     {"examples", "built", "cache", "binder_repo", "integrations", "fingerprint"}
@@ -193,12 +203,13 @@ def load_config(start: Path) -> Config:
             f"Known keys: {', '.join(sorted(_KNOWN_KEYS))}."
         )
 
+    table = DEFAULTS | table
     root = pyproject.parent
-    examples = root / table.get("examples", "docs/examples")
-    html_thumbnails = table.get("html_thumbnails", False)
+    examples = root / table["examples"]
+    html_thumbnails = table["html_thumbnails"]
     if not isinstance(html_thumbnails, bool):
         raise ConfigError("html_thumbnails in [tool.zallery] must be true or false.")
-    stylesheets = table.get("html_thumbnail_css", [])
+    stylesheets = table["html_thumbnail_css"]
     if not isinstance(stylesheets, list):
         raise ConfigError("html_thumbnail_css in [tool.zallery] must be a list.")
     html_thumbnail_css = tuple(root / str(path) for path in stylesheets)
@@ -211,12 +222,10 @@ def load_config(start: Path) -> Config:
         root=root,
         examples=examples,
         built=root / table["built"] if "built" in table else examples / "_built",
-        cache=root / table.get("cache", ".gallery-cache"),
+        cache=root / table["cache"],
         binder_repo=table.get("binder_repo"),
-        integrations=_integrations(table.get("integrations", []), root),
-        fingerprint_files=tuple(
-            root / p for p in table.get("fingerprint", ["uv.lock"])
-        ),
+        integrations=_integrations(table["integrations"], root),
+        fingerprint_files=tuple(root / p for p in table["fingerprint"]),
         html_thumbnails=html_thumbnails,
         html_thumbnail_css=html_thumbnail_css,
     )
