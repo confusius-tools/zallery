@@ -14,7 +14,7 @@ from typing import Any
 
 import nbformat
 
-from zallery._types import SCENE_MIME, HtmlThumbnail
+from zallery._types import ANSI_ESCAPE, SCENE_MIME, HtmlThumbnail
 from zallery.integration import Integration
 from zallery.integration.plotly import MIME as _PLOTLY_MIME
 
@@ -49,9 +49,6 @@ ERROR_MARK = "<!-- zallery: a cell of this example raised -->"
 `zallery.pipeline` reads it to give the example its error thumbnail, also when the
 page comes from the cache.
 """
-
-_ANSI_ESCAPE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
-"""ANSI control sequences (colors, cursor moves) in terminal-oriented output."""
 
 _SCENE_STYLE = (
     "<style>.gallery-scene-dark,"
@@ -512,7 +509,7 @@ def _output_code_block(text: str) -> str:
     """
     return (
         '<div class="gallery-output" markdown>\n\n```\n'
-        + _ANSI_ESCAPE.sub("", text).rstrip("\n")
+        + ANSI_ESCAPE.sub("", text).rstrip("\n")
         + "\n```\n\n</div>\n"
     )
 

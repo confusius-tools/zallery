@@ -7,7 +7,8 @@ between the two is said by integration classes, one for each display library
 runs the whole pipeline: discover, cache, execute, render, index.
 """
 
+from zallery.execute import ExampleError
 from zallery.integration import Integration
 from zallery.pipeline import build_gallery
 
-__all__ = ["Integration", "build_gallery"]
+__all__ = ["ExampleError", "Integration", "build_gallery"]

@@ -179,6 +179,12 @@ classes when it loads the configuration.
   exported for vtk.js (`last_vtksz`); the hook exports the dark one, and the page
   shows them in iframes of trame-vtk's standalone viewer, in a tab next to the
   picture.
+- With `--abort-on-error`, nbclient runs with `allow_errors=False`: it raises at
+  the first failing cell, unless the cell is tagged `raises-exception`, and
+  `execute_example` turns that into `ExampleError` after it has ruled out the
+  setup cell. The option also runs again an example to run whose cached page has
+  the error mark, whether or not its cell was allowed to raise: the page does not
+  say which.
 - The page of an example that raised ends with the comment `render.ERROR_MARK`,
   which the pipeline reads to pick the error thumbnail. A comment, not a file: the
   state has to come back from the cache, and nothing removes a stale file from

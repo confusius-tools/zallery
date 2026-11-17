@@ -66,7 +66,7 @@ the cache directory out of version control.
 ## Command line
 
 ```
-zallery [--no-run] [--no-cache] [EXAMPLE ...]
+zallery [--no-run] [--no-cache] [--abort-on-error] [EXAMPLE ...]
 ```
 
 - With no arguments, every example is executed, or restored from cache.
@@ -85,6 +85,14 @@ zallery path/to/example_1.py path/to/example_2.py
 - `--no-run` restored from cache if present, or rendered without execution.
 - `--no-cache` executes the selected examples even when a cached result exists; the
   result replaces the cache entry.
+- `--abort-on-error` stops the build at the first cell that raises, prints its
+  traceback and exits with status 1. Without it, the traceback is rendered on the
+  page of the example and the build goes on.
+    - The examples after that cell are not built and the index page is not
+      written.
+    - A cell tagged `raises-exception` may raise: it does not stop the build.
+    - An example whose cached result shows an error is run again, so that an
+      error does not pass because it is in the cache.
 
 `python -m zallery` is equivalent.
 

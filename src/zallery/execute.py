@@ -16,7 +16,9 @@ import zmq
 from ipykernel.kernelspec import get_kernel_dict
 from jupyter_client.manager import KernelManager
 from nbclient import NotebookClient
+from nbclient.exceptions import CellExecutionError
 
+from zallery._types import ANSI_ESCAPE
 from zallery.integration import STOCK
 
 OnCellExecuted = Callable[..., None]
@@ -154,6 +156,30 @@ def read_example(source: Path) -> nbformat.NotebookNode:
     return jupytext.read(source)
 
 
+class ExampleError(Exception):
+    """Raised for a cell of an example that raises, when the build aborts on one.
+
+    Parameters
+    ----------
+    source : pathlib.Path
+        The example script.
+    traceback : str
+        The traceback of the cell, as the kernel gave it.
+
+    Attributes
+    ----------
+    source : pathlib.Path
+        The example script.
+    traceback : str
+        The traceback of the cell, without the colors the kernel gave it.
+    """
+
+    def __init__(self, source: Path, traceback: str) -> None:
+        self.source = source
+        self.traceback = ANSI_ESCAPE.sub("", traceback)
+        super().__init__(f"{source} raised an error:\n\n{self.traceback}")
+
+
 def execute_example(
     source: Path,
     *,
@@ -161,6 +187,7 @@ def execute_example(
     on_cell_executed: OnCellExecuted | None = None,
     integrations: Sequence[str] | None = None,
     root: Path | None = None,
+    abort_on_error: bool = False,
 ) -> tuple[nbformat.NotebookNode, float]:
     """Execute one percent-format `.py` example end-to-end.
 
@@ -179,6 +206,10 @@ def execute_example(
     root : pathlib.Path, optional
         Directory put on the kernel's `sys.path` so that the classes of the
         project are importable.
+    abort_on_error : bool, default: False
+        Whether to stop at the first cell that raises. When `False`, the error
+        is an output of its cell and the cells after it run. A cell tagged
+        `raises-exception` may raise in both cases.
 
     Returns
     -------
@@ -193,6 +224,8 @@ def execute_example(
     ------
     RuntimeError
         If the kernel setup cell fails; theming would otherwise be silently off.
+    ExampleError
+        If a cell raises and `abort_on_error` is set.
     """
     notebook = read_example(source)
     setup_cell = nbformat.v4.new_code_cell(
@@ -236,20 +269,26 @@ def execute_example(
     # `zallery.render`) inlines into the rendered page, matching what
     # a normal Jupyter notebook would show after a failed run. A broken
     # example therefore degrades to "renders with a visible traceback"
-    # instead of aborting the whole gallery build.
+    # instead of aborting the whole gallery build. With `abort_on_error`,
+    # nbclient raises at the first failing cell instead, unless the cell is
+    # tagged `raises-exception`.
     with tempfile.TemporaryDirectory(prefix="zallery-") as working_dir:
         client = NotebookClient(
             notebook,
             km=kernel_manager,
             timeout=timeout,
             on_cell_executed=on_cell_executed,
-            allow_errors=True,
+            allow_errors=not abort_on_error,
             resources={"metadata": {"path": working_dir}},
         )
         client.owns_km = True
 
         start = time.perf_counter()
-        client.execute()
+        failure: CellExecutionError | None = None
+        try:
+            client.execute()
+        except CellExecutionError as exc:
+            failure = exc
         elapsed = time.perf_counter() - start
 
     # The setup cell is ours, not the example's: drop it so the notebook lines up
@@ -259,4 +298,15 @@ def execute_example(
     if errors:
         traceback = "\n".join(errors[0].get("traceback", []))
         raise RuntimeError(f"Gallery kernel setup failed:\n{traceback}")
+    if failure is not None:
+        # The cell that failed is the last one that ran, so its error is the
+        # last one: an earlier error is that of a cell allowed to raise.
+        errors = [
+            out
+            for cell in notebook.cells
+            for out in cell.get("outputs", [])
+            if out.get("output_type") == "error"
+        ]
+        traceback = "\n".join(errors[-1].get("traceback", [])) if errors else ""
+        raise ExampleError(source, traceback or str(failure)) from failure
     return notebook, elapsed

@@ -13,7 +13,7 @@ import pytest
 from matplotlib.image import imread
 
 from zallery import execute
-from zallery.execute import execute_example, find_kernel_ports
+from zallery.execute import ExampleError, execute_example, find_kernel_ports
 
 
 def test_execute_runs_jupytext_py_and_returns_executed_nb(tmp_path: Path) -> None:
@@ -292,3 +292,54 @@ def test_execute_takes_a_pyvista_picture_again_for_a_light_look(tmp_path: Path) 
     ]:
         corner = imread(io.BytesIO(base64.b64decode(png)))[0, 0, :3]
         assert tuple(corner) == pytest.approx(color, abs=0.01)
+
+
+@pytest.mark.slow
+def test_execute_stops_at_the_first_cell_that_raises_when_asked(tmp_path: Path) -> None:
+    marker = tmp_path / "a-later-cell-ran"
+    src = tmp_path / "boom.py"
+    src.write_text(
+        "# %%\nprint('before')\n\n"
+        "# %%\nraise ValueError('boom in the example')\n\n"
+        f"# %%\nopen({str(marker)!r}, 'w').close()\n"
+    )
+
+    with pytest.raises(ExampleError) as raised:
+        execute_example(src, timeout=60, abort_on_error=True)
+
+    assert raised.value.source == src
+    assert "ValueError: boom in the example" in raised.value.traceback
+    assert "----> 1 raise ValueError" in raised.value.traceback
+    # The colors of the kernel's traceback are for a terminal that reads them.
+    assert "\x1b" not in raised.value.traceback
+    assert str(src) in str(raised.value)
+    assert raised.value.traceback in str(raised.value)
+    assert not marker.exists()
+
+
+@pytest.mark.slow
+def test_execute_lets_a_cell_tagged_raises_exception_raise(tmp_path: Path) -> None:
+    src = tmp_path / "expected.py"
+    src.write_text(
+        '# %% tags=["raises-exception"]\nraise ValueError("expected")\n\n'
+        "# %%\nprint('after')\n"
+    )
+
+    notebook, _ = execute_example(src, timeout=60, abort_on_error=True)
+
+    assert notebook.cells[0].outputs[0]["output_type"] == "error"
+    assert notebook.cells[1].outputs[0]["text"] == "after\n"
+
+
+@pytest.mark.slow
+def test_execute_reports_a_failed_kernel_setup_as_such_when_aborting(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        execute, "_setup_source", lambda *_: "raise RuntimeError('no theme')"
+    )
+    src = tmp_path / "ex.py"
+    src.write_text("# %%\nprint('hi')\n")
+
+    with pytest.raises(RuntimeError, match="(?s)Gallery kernel setup failed.*no theme"):
+        execute_example(src, timeout=60, abort_on_error=True)

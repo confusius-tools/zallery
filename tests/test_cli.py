@@ -199,6 +199,27 @@ def test_cli_no_run_rejects_example_paths(tmp_path: Path) -> None:
     assert "--no-run cannot be combined" in proc.stderr
 
 
+@pytest.mark.slow
+def test_cli_abort_on_error_stops_the_build_and_prints_the_traceback(
+    tmp_path: Path,
+) -> None:
+    project, examples = _make_project(tmp_path)
+    # Before `hello.py` in its section, so that it runs first.
+    (examples / "io" / "boom.py").write_text(
+        "# %% [markdown]\n# # Boom\n\n# %%\nraise ValueError('boom in the example')\n"
+    )
+
+    proc = _run(project, "--abort-on-error")
+
+    assert proc.returncode == 1, f"stderr: {proc.stderr}\nstdout: {proc.stdout}"
+    assert "build aborted" in proc.stderr
+    assert str(examples / "io" / "boom.py") in proc.stderr
+    assert "ValueError: boom in the example" in proc.stderr
+    assert "Traceback (most recent call last)" in proc.stderr
+    assert not (examples / "_built" / "io" / "hello.md").exists()
+    assert not (examples / "index.md").exists()
+
+
 def test_cli_returns_1_when_examples_dir_missing(tmp_path: Path) -> None:
     project = tmp_path / "project"
     project.mkdir()

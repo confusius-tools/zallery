@@ -169,6 +169,7 @@ def _build_one(
     integrations: Sequence[Integration] = (),
     root: Path | None = None,
     html_thumbnail: HtmlThumbnail | None = None,
+    abort_on_error: bool = False,
 ) -> RenderedExample:
     """Build one example and return its rendered metadata.
 
@@ -207,11 +208,18 @@ def _build_one(
     html_thumbnail : HtmlThumbnail, optional
         Writes the thumbnails of an HTML output, passed to
         `zallery.render.render_notebook`.
+    abort_on_error : bool, default: False
+        Whether a cell that raises stops the build (see `build_gallery`).
 
     Returns
     -------
     RenderedExample
         The rendered example's metadata.
+
+    Raises
+    ------
+    zallery.execute.ExampleError
+        If a cell raises and `abort_on_error` is set.
     """
     base_name = spec.base_name
     out_dir = built_dir / spec.section
@@ -230,7 +238,18 @@ def _build_one(
     # total has to match that — counting markdown cells would leave it stuck.
     n_cells = sum(1 for c in source_notebook.cells if c.cell_type == "code")
 
-    if cache_entry.is_dir() and (use_cache or not run):
+    # An error must not pass because it is in the cache: with `abort_on_error`,
+    # an example to run whose cached page shows an error runs again, which also
+    # gives its traceback.
+    # ponytail: the page does not say whether the cell was allowed to raise, so
+    # such an example runs on every build; mark those pages apart if it costs.
+    rerun = (
+        abort_on_error
+        and run
+        and cache_entry.is_dir()
+        and _raised(cache_entry / f"{base_name}.md")
+    )
+    if cache_entry.is_dir() and (use_cache or not run) and not rerun:
         progress.add_task(f"{spec.section}/{base_name} [cached]", total=1, completed=1)
         # The live bar already conveys this interactively; in CI/non-TTY the bar is
         # disabled, so emit a plain flushed line instead.
@@ -283,6 +302,7 @@ def _build_one(
         on_cell_executed=_advance_on_cell(progress, task),
         integrations=[name(type(integration)) for integration in integrations],
         root=root,
+        abort_on_error=abort_on_error,
     )
 
     if not interactive:
@@ -347,6 +367,7 @@ def build_gallery(
     use_cache: bool = True,
     integrations: Sequence[Integration] | None = None,
     html_thumbnail: HtmlThumbnail | None = None,
+    abort_on_error: bool = False,
 ) -> None:
     """Run the full pipeline and write the gallery to disk.
 
@@ -387,11 +408,20 @@ def build_gallery(
         Writes the thumbnails of an HTML output (see
         `zallery.thumbnail.screenshot_html`). If not provided, only an image
         output can be an example's thumbnail.
+    abort_on_error : bool, default: False
+        Whether to stop the build at the first cell that raises. When `False`,
+        the traceback is rendered on the page of the example and the build
+        goes on. When `True`, an example to run whose cached result shows an
+        error is run again. A cell tagged `raises-exception` may raise in both
+        cases.
 
     Raises
     ------
     ValueError
         If a path in `only` does not match any discovered example.
+    zallery.execute.ExampleError
+        If a cell raises and `abort_on_error` is set. The examples after it are
+        not built and the index page is not written.
     """
     if integrations is None:
         integrations = [cls() for cls in load(STOCK)]
@@ -426,6 +456,7 @@ def build_gallery(
                     integrations=integrations,
                     root=repo_root,
                     html_thumbnail=html_thumbnail,
+                    abort_on_error=abort_on_error,
                     built_dir=built_dir,
                     cache_root=cache_root,
                     deps_fingerprint=deps_fingerprint,

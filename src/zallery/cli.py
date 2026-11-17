@@ -18,6 +18,7 @@ from pathlib import Path
 
 from zallery._types import HtmlThumbnail
 from zallery.config import Config, ConfigError, deps_fingerprint, load_config
+from zallery.execute import ExampleError
 from zallery.pipeline import build_gallery
 from zallery.thumbnail import BROWSER_ENV, find_browser, screenshot_html
 
@@ -74,8 +75,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     Returns
     -------
     int
-        Exit status: 0 on success, 1 when the examples directory is missing or an
-        argument names no example, 2 when no configuration is found.
+        Exit status: 0 on success, 1 when the examples directory is missing, an
+        argument names no example, or a cell raises under `--abort-on-error`, 2
+        when no configuration is found.
     """
     parser = argparse.ArgumentParser(prog="zallery", description=__doc__)
     parser.add_argument(
@@ -102,6 +104,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         help=(
             "Execute the selected examples even if a cached result exists, and "
             "replace it. Examples not selected still come from cache."
+        ),
+    )
+    parser.add_argument(
+        "--abort-on-error",
+        action="store_true",
+        help=(
+            "Stop the build at the first cell that raises, print its traceback and "
+            "exit with status 1. Without it, the traceback is rendered on the page "
+            "and the build goes on. A cell tagged raises-exception may raise."
         ),
     )
     args = parser.parse_args(argv)
@@ -131,8 +142,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             use_cache=not args.no_cache,
             integrations=config.integrations,
             html_thumbnail=html_thumbnail,
+            abort_on_error=args.abort_on_error,
         )
     except ValueError as exc:
         print(exc, file=sys.stderr)
+        return 1
+    except ExampleError as exc:
+        print(f"zallery: build aborted, {exc}", file=sys.stderr)
         return 1
     return 0

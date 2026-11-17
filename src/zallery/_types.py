@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+
+ANSI_ESCAPE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+"""ANSI control sequences (colors, cursor moves) in terminal-oriented output."""
 
 SCENE_MIME = "application/vnd.zallery.vtksz"
 """Mime type the kernel gives a pyvista scene exported for the browser.

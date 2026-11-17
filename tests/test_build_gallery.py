@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import shutil
+from functools import partial
 from pathlib import Path
 
 import pytest
 
+from zallery import ExampleError
 from zallery.pipeline import build_gallery
 
 GalleryPaths = tuple[Path, Path, Path]
@@ -273,3 +275,54 @@ def test_build_gallery_shows_the_error_thumbnail_of_an_example_that_raises(
         }
         assert "error_thumb.svg#only-light" in cards["_built/io/broken.md"]
         assert "default_thumb.svg#only-light" in cards["_built/io/fine.md"]
+
+
+_BOOM = "# %% [markdown]\n# # Boom\n\n# %%\nraise ValueError('boom in the example')\n"
+_FINE = "# %% [markdown]\n# # Fine\n\n# %%\nprint('hi')\n"
+
+
+@pytest.mark.slow
+def test_build_gallery_aborts_at_the_first_example_that_raises_when_asked(
+    gallery_paths: GalleryPaths,
+) -> None:
+    examples_root, built_dir, cache_root = gallery_paths
+    failing = _seed_example(examples_root, "a_first", "boom", _BOOM)
+    _seed_example(examples_root, "b_second", "fine", _FINE)
+
+    with pytest.raises(ExampleError, match="ValueError: boom in the example") as raised:
+        build_gallery(
+            examples_root=examples_root,
+            built_dir=built_dir,
+            cache_root=cache_root,
+            deps_fingerprint="testdeps==1.0",
+            abort_on_error=True,
+        )
+
+    assert raised.value.source == failing
+    assert not (built_dir / "b_second" / "fine.md").exists()
+    assert not (examples_root / "index.md").exists()
+
+
+@pytest.mark.slow
+def test_build_gallery_runs_a_cached_example_that_raised_again_to_abort(
+    gallery_paths: GalleryPaths,
+) -> None:
+    examples_root, built_dir, cache_root = gallery_paths
+    _seed_example(examples_root, "io", "boom", _BOOM)
+    build = partial(
+        build_gallery,
+        examples_root=examples_root,
+        built_dir=built_dir,
+        cache_root=cache_root,
+        deps_fingerprint="testdeps==1.0",
+    )
+
+    # Without the option the error is content: on the page, and in the cache.
+    build()
+    assert "ValueError" in (built_dir / "io" / "boom.md").read_text()
+
+    # An example that is not run is restored as it is.
+    build(only=[], abort_on_error=True)
+
+    with pytest.raises(ExampleError, match="ValueError: boom in the example"):
+        build(abort_on_error=True)
