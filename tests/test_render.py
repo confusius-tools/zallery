@@ -328,6 +328,108 @@ def test_render_escapes_tab_titles(tmp_path: Path) -> None:
     assert ">R&amp;D &lt;beta&gt;</label>" in md_path.read_text()
 
 
+def _rendered(tmp_path: Path, *cells: nbformat.NotebookNode) -> str:
+    """Return the page of a notebook made of `cells`."""
+    nb = nbformat.v4.new_notebook()
+    nb.cells.extend(cells)
+    md_path, _ = render_notebook(
+        nb, nb, out_dir=tmp_path, base_name="ex", runtime_seconds=1.0
+    )
+    return md_path.read_text()
+
+
+@pytest.mark.parametrize(
+    ("tag", "opening"),
+    [
+        ("admonition", '!!! example "Example"'),
+        ("admonition: Setup", '!!! example "Setup"'),
+        ("admonition[warning]", '!!! warning "Warning"'),
+        ("admonition[tip]: Read this", '!!! tip "Read this"'),
+    ],
+)
+def test_render_puts_the_code_of_an_admonition_cell_in_an_open_admonition(
+    tmp_path: Path, tag: str, opening: str
+) -> None:
+    md = _rendered(tmp_path, _print_cell("a", tag))
+
+    # The code is the content of the admonition; the output is under it, outside.
+    assert f"{opening}\n\n    ```python\n    print('a')\n    ```\n" in md
+    assert "???" not in md
+    assert '\n<div class="gallery-output" markdown>\n\n```\na\n```' in md
+
+
+def test_render_collapse_wins_over_admonition_on_one_cell(tmp_path: Path) -> None:
+    md = _rendered(tmp_path, _print_cell("a", "admonition: Open", "collapse: Closed"))
+
+    assert '??? example "Closed"' in md
+    assert "!!!" not in md
+
+
+def test_render_includes_the_output_in_an_admonition(tmp_path: Path) -> None:
+    md = _rendered(
+        tmp_path,
+        _print_cell("a", "admonition[tip]: R&D <beta>", "include-output"),
+        _print_cell("b"),
+    )
+
+    # Raw HTML, as a tab is: an HTML output indented under `!!!` would be mangled.
+    assert (
+        '<div class="admonition tip">\n'
+        '<p class="admonition-title">R&amp;D &lt;beta&gt;</p>\n\n'
+        "```python\nprint('a')\n```\n\n"
+        '<div class="gallery-output" markdown>\n\n```\na\n```\n\n</div>\n\n'
+        "</div>\n"
+    ) in md
+    assert "!!!" not in md
+    # The next cell is outside the admonition.
+    assert md.index("</div>\n\n</div>") < md.index("print('b')")
+
+
+def test_render_includes_the_output_in_a_collapsed_admonition(tmp_path: Path) -> None:
+    md = _rendered(tmp_path, _print_cell("a", "collapse", "include-output"))
+
+    assert (
+        '<details class="example">\n<summary>Show code</summary>\n\n'
+        "```python\nprint('a')\n```\n\n"
+        '<div class="gallery-output" markdown>\n\n```\na\n```\n\n</div>\n\n'
+        "</details>\n"
+    ) in md
+    assert "???" not in md
+
+
+def test_render_ignores_include_output_without_an_admonition(tmp_path: Path) -> None:
+    tagged = _rendered(tmp_path / "tagged", _print_cell("a", "include-output"))
+    plain = _rendered(tmp_path / "plain", _print_cell("a"))
+
+    assert tagged == plain
+
+
+def test_render_ignores_annotate_on_a_cell_that_includes_its_output(
+    tmp_path: Path,
+) -> None:
+    """The admonition is raw HTML, where the list of notes would show as text."""
+    md = _rendered(
+        tmp_path,
+        _print_cell("a", "annotate", "admonition", "include-output"),
+        nbformat.v4.new_markdown_cell("1.  A note."),
+    )
+
+    assert ".annotate" not in md
+    # The Markdown cell stays where it is, after the admonition.
+    assert md.index("</div>\n\n</div>") < md.index("1.  A note.")
+
+
+@pytest.mark.parametrize("tag", ["collapse", "admonition"])
+def test_render_ignores_admonition_tags_on_a_tab_cell(tmp_path: Path, tag: str) -> None:
+    md = _rendered(tmp_path, _print_cell("a", "tab: One", tag, "include-output"))
+
+    assert "???" not in md
+    assert "!!!" not in md
+    assert "admonition" not in md
+    assert "<details" not in md
+    assert "\n```python\nprint('a')\n```\n" in md
+
+
 def test_render_ignores_collapse_on_a_tab_cell(tmp_path: Path) -> None:
     """A tab is raw HTML, where the `???` syntax of `collapse` would show as text."""
     nb = nbformat.v4.new_notebook()

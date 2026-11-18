@@ -165,17 +165,21 @@ def _cell_tags(cell: nbformat.NotebookNode) -> set[str]:
     return set(cell.metadata.get("tags", []))
 
 
-_COLLAPSE_TAG = re.compile(r"collapse(?:\[(?P<kind>[^\]]+)\])?(?::(?P<title>.*))?\Z")
+_ADMONITION_TAG = re.compile(
+    r"(?P<name>collapse|admonition)(?:\[(?P<kind>[^\]]+)\])?(?::(?P<title>.*))?\Z"
+)
+"""An `admonition` or a `collapse` tag, with its optional type and title."""
 
 
-def _collapse_spec(tags: set[str]) -> tuple[str, str] | None:
-    """Return the (admonition type, title) for a collapsed code cell, or `None`.
+def _admonition_spec(tags: set[str]) -> tuple[bool, str, str] | None:
+    """Return the admonition a code cell goes in, or `None`.
 
-    A cell tagged `collapse` has its code hidden behind a collapsed admonition —
-    useful for tucking away setup/boilerplate. The tag accepts an optional admonition
-    type in brackets and an optional title after a colon: `collapse`,
-    `collapse: <title>`, `collapse[<type>]`, or `collapse[<type>]: <title>`. The type
-    is any admonition name Zensical understands (`example`, `warning`, `tip`, ...).
+    A cell tagged `admonition` has its code in an admonition. A cell tagged
+    `collapse` has it in a collapsed one, which tucks setup code away. Both tags
+    accept an admonition type in brackets and a title after a colon, both optional:
+    `collapse`, `collapse: <title>`, `collapse[<type>]` or
+    `collapse[<type>]: <title>`. The type is any admonition name Zensical
+    understands (`example`, `warning`, `tip`, ...).
 
     Parameters
     ----------
@@ -184,43 +188,97 @@ def _collapse_spec(tags: set[str]) -> tuple[str, str] | None:
 
     Returns
     -------
+    collapsed : bool
+        Whether the admonition is collapsed.
     kind : str
         The admonition type, defaulting to `example`.
     title : str
-        The callout title, defaulting to `Show code`.
+        The admonition title. It defaults to `Show code` for a collapsed one, and
+        to the name of the type otherwise, as Zensical does.
     """
-    # Sorted so that a cell mistakenly carrying several collapse tags picks the same
-    # one on every build instead of following set iteration order.
-    for tag in sorted(tags):
-        match = _COLLAPSE_TAG.match(tag)
-        if match:
-            kind = (match["kind"] or "").strip() or "example"
-            title = (match["title"] or "").strip() or "Show code"
-            return kind, title
+    # `collapse` first: it wins on a cell that mistakenly carries both tags.
+    for name in ("collapse", "admonition"):
+        # Sorted so that a cell with several such tags picks the same one on every
+        # build instead of following set iteration order.
+        for tag in sorted(tags):
+            match = _ADMONITION_TAG.match(tag)
+            if match and match["name"] == name:
+                kind = (match["kind"] or "").strip() or "example"
+                collapsed = name == "collapse"
+                default = "Show code" if collapsed else kind.split()[0].capitalize()
+                return collapsed, kind, (match["title"] or "").strip() or default
     return None
 
 
-def _collapsible_code(kind: str, title: str, code_block: str) -> str:
-    """Wrap a fenced code block in a collapsed `??? <kind>` admonition.
+def _admonition_markdown(
+    collapsed: bool,
+    kind: str,
+    title: str,
+    code_block: str,
+) -> str:
+    """Wrap a fenced code block in an admonition, in the Markdown syntax.
 
     Parameters
     ----------
+    collapsed : bool
+        Whether the admonition is collapsed: `???` in place of `!!!`.
     kind : str
         The admonition type (e.g. `example`, `warning`).
     title : str
-        The admonition title shown on the collapsed callout.
+        The admonition title.
     code_block : str
-        The fenced code block Markdown to hide.
+        The fenced code block Markdown to wrap.
 
     Returns
     -------
     str
-        The Markdown for the collapsed callout, with `code_block` indented as its content.
+        The Markdown for the admonition, with `code_block` indented as its content.
     """
     indented = "\n".join(
         ("    " + line) if line.strip() else "" for line in code_block.splitlines()
     )
-    return f'??? {kind} "{title}"\n\n{indented}\n'
+    return f'{"???" if collapsed else "!!!"} {kind} "{title}"\n\n{indented}\n'
+
+
+def _admonition_html(
+    collapsed: bool,
+    kind: str,
+    title: str,
+    content: str,
+) -> str:
+    """Wrap the code and the outputs of a cell in an admonition, as raw HTML.
+
+    The markup is what the Markdown syntax produces and the theme styles. The
+    syntax itself is not an option here, for the reason given in `_tab_set`: it
+    needs the content indented, where an HTML output is mangled. In a raw HTML
+    block, fenced code is still highlighted and everything else is left alone.
+
+    Parameters
+    ----------
+    collapsed : bool
+        Whether the admonition is collapsed: a `details` element.
+    kind : str
+        The admonition type (e.g. `example`, `warning`).
+    title : str
+        The admonition title.
+    content : str
+        Markdown of the code block and of the outputs.
+
+    Returns
+    -------
+    str
+        The HTML of the admonition.
+    """
+    kind, title = escape(kind), escape(title)
+    if collapsed:
+        opening = f'<details class="{kind}">\n<summary>{title}</summary>'
+        closing = "</details>"
+    else:
+        opening = (
+            f'<div class="admonition {kind}">\n<p class="admonition-title">{title}</p>'
+        )
+        closing = "</div>"
+    return f"{opening}\n\n{content}\n{closing}\n"
 
 
 def _tag_value(tags: set[str], key: str) -> str | None:
@@ -239,7 +297,7 @@ def _tag_value(tags: set[str], key: str) -> str | None:
         The value, or `None` if no tag gives a non-empty one.
     """
     prefix = f"{key}:"
-    # Sorted for the same reason as in `_collapse_spec`.
+    # Sorted for the same reason as in `_admonition_spec`.
     for tag in sorted(tags):
         value = tag.removeprefix(prefix).strip()
         if tag.startswith(prefix) and value:
@@ -743,9 +801,12 @@ def render_notebook(
         tags = _cell_tags(cell)
         tab_title = _tag_value(tags, "tab")
         cell_parts: list[str] = []
-        # A tab is a raw HTML block, where Markdown syntax (the `???` of `collapse`,
-        # the list of annotations) would show as text: both tags are ignored there.
-        annotate = "annotate" in tags and tab_title is None
+        # A tab is a raw HTML block, where Markdown syntax (the `!!!` and `???` of an
+        # admonition, the list of annotations) would show as text: these tags are
+        # ignored there. An admonition that includes the output is raw HTML too.
+        admonition = _admonition_spec(tags) if tab_title is None else None
+        include_output = admonition is not None and "include-output" in tags
+        annotate = "annotate" in tags and tab_title is None and not include_output
         code_block = _code_fence(cell.source, tags, annotate=annotate)
         # `cell_index` counts from 1, so it is the position of the next cell.
         following = cells[cell_index] if cell_index < len(cells) else None
@@ -753,11 +814,7 @@ def render_notebook(
             # The theme takes the notes from the list directly under the code block.
             code_block += "\n" + following.source.rstrip() + "\n"
             moved = cell_index + 1
-        collapse = _collapse_spec(tags)
-        if collapse is not None and tab_title is None:
-            cell_parts.append(_collapsible_code(*collapse, code_block))
-        else:
-            cell_parts.append(code_block)
+        cell_parts.append(code_block)
 
         outputs = [
             o
@@ -928,6 +985,11 @@ def render_notebook(
             thumb_dark = out_dir / f"{base_name}_thumb_dark.png"
             if html_thumbnail(*first_html, thumb_light, thumb_dark):
                 thumbnail = (thumb_light, thumb_dark)
+
+        if admonition is not None and include_output:
+            cell_parts = [_admonition_html(*admonition, "\n".join(cell_parts))]
+        elif admonition is not None:
+            cell_parts[0] = _admonition_markdown(*admonition, code_block)
 
         if tab_title is None:
             _flush_tabs(parts, tabs)

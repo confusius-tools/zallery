@@ -235,6 +235,11 @@ classes when it loads the configuration.
   of a page, and for a section only from its index page (`navigation.indexes`):
   hence the page. Front matter of `_section.md` goes to that page only; the
   gallery index drops it, where it would show as text.
+- A cell tagged `admonition` or `collapse` has its code in the Markdown syntax of
+  an admonition (`!!!`, `???`). With `include-output`, the admonition also holds
+  the outputs and is written as raw HTML (`div.admonition`, `details`), for the
+  reason given for tab cells below. The list of notes of `annotate` would show
+  as text there, so that tag is ignored with `include-output`.
 - Tab cells are written as raw HTML in the markup of `pymdownx.tabbed`, not with the
   `===` syntax: indented under `===`, an HTML output is parsed as Markdown text and
   mangled (styles, scripts, table cells). `md_in_html` is no help: it wraps the tab
