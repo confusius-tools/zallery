@@ -1,7 +1,8 @@
 # Writing examples
 
-Examples live under the [`config.toml:examples`](configuration/#default-configuration)
-path as `<config:examples>/<section>/<name>.py`.
+The gallery root lives in the
+[`tool.zallery:gallery_root`](configuration/#default-configuration) path specified in the
+`pyproject.toml`. Examples as `<gallery_root>/<section>/<name>.py`.
 
 ## Example title
 
@@ -105,7 +106,7 @@ of the site in place of its own, so that a broken example stands out:
 </div>
 
 The two pictures are files of the site, `error_thumb.svg` and `error_thumb_dark.svg` in
-`<examples>/_assets/`: see [Zensical integration](zensical-integration.md). Without them,
+`<gallery_root>/_assets/`: see [Zensical integration](zensical-integration.md). Without them,
 the example keeps its own thumbnail.
 
 To make a broken example fail the build, run `zallery --abort-on-error`. The build then

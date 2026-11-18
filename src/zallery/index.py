@@ -14,10 +14,10 @@ _DEFAULT_THUMB_DARK = "_assets/default_thumb_dark.svg"
 
 _ERROR_THUMB_LIGHT = "_assets/error_thumb.svg"
 _ERROR_THUMB_DARK = "_assets/error_thumb_dark.svg"
-"""Thumbnails of an example that raised, if the examples root has both files."""
+"""Thumbnails of an example that raised, if the gallery root has both files."""
 
 _INDEX_HEADER = "_index.md"
-"""File in the examples root whose content opens the index page, if present."""
+"""File in the gallery root whose content opens the index page, if present."""
 
 _DEFAULT_HEADER = (
     "# Examples\n\n"
@@ -25,10 +25,10 @@ _DEFAULT_HEADER = (
     "notebook-style\n"
     "page with code, outputs, and downloadable source files.\n"
 )
-"""Index page header used when the examples root has no `_index.md`."""
+"""Index page header used when the gallery root has no `_index.md`."""
 
 # Markdown inline link `[text](url)`, and mkdocstrings cross-reference `[text][ident]`.
-# Card overlays are copied verbatim onto the gallery index page (at the examples root),
+# Card overlays are copied verbatim onto the gallery index page (at the gallery root),
 # where an example's relative links — written against its own built page — would not
 # resolve and fail `zensical build --strict`. A cross-reference does resolve, but it
 # would render as a link inside an overlay that is inert by design. The full links still
@@ -67,7 +67,7 @@ def _card_image_markdown(rex: RenderedExample, *, root: Path, href: str) -> str:
     """Return theme-aware thumbnail markup for one example card.
 
     An example that raised shows the error thumbnails, whatever its own: the card
-    must show the fault. Without error thumbnails in the examples root, it is
+    must show the fault. Without error thumbnails in the gallery root, it is
     treated as any other example.
     """
     if (

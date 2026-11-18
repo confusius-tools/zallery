@@ -7,8 +7,8 @@ are optional. See default configuration in [`config.toml`](#default-configuratio
 
 | Key | Meaning |
 |---|---|
-| `examples` | Directory of example sections. |
-| `built` | Where rendered pages and images go. If not set, the `_built` directory under `examples`. |
+| `gallery_root` | Directory of example sections. |
+| `built` | Where rendered pages and images go. If not set, the `_built` directory under `gallery_root`. |
 | `cache` | Execution/render cache. |
 | `binder_repo` | `owner/repo` for the Binder launch badges. If not set, no Binder badge. |
 | `integrations` | Integration classes of the project, as `"module:Class"` names: see [Integrations](integrations.md). |

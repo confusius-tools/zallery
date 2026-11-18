@@ -75,7 +75,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     Returns
     -------
     int
-        Exit status: 0 on success, 1 when the examples directory is missing, an
+        Exit status: 0 on success, 1 when the gallery root is missing, an
         argument names no example, or a cell raises under `--abort-on-error`, 2
         when no configuration is found.
     """
@@ -124,14 +124,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     except ConfigError as exc:
         print(f"zallery: {exc}", file=sys.stderr)
         return 2
-    if not config.examples.is_dir():
-        print(f"No examples directory at {config.examples}", file=sys.stderr)
+    if not config.gallery_root.is_dir():
+        print(f"No gallery root at {config.gallery_root}", file=sys.stderr)
         return 1
 
     html_thumbnail, thumbnail_fingerprint = _html_thumbnail(config)
     try:
         build_gallery(
-            examples_root=config.examples,
+            gallery_root=config.gallery_root,
             built_dir=config.built,
             cache_root=config.cache,
             deps_fingerprint=deps_fingerprint(config) + thumbnail_fingerprint,

@@ -5,9 +5,10 @@
 [tool.zallery]
 
 # Directory of example sections.
-examples = "docs/examples"
+gallery_root = "docs/examples"
 
-# Where rendered pages and images go. Not set: the `_built` directory under `examples`.
+# Where rendered pages and images go. Not set: the `_built` directory under
+# `gallery_root`.
 # built = "docs/examples/_built"
 
 # Execution/render cache.
@@ -29,7 +30,7 @@ integrations = []
 # here:
 # - the source of the example;
 # - the Python version;
-# - the values of `examples`, `built`, `binder_repo`, `integrations` and
+# - the values of `gallery_root`, `built`, `binder_repo`, `integrations` and
 #   `html_thumbnails`;
 # - the Zallery sources;
 # - the module of each integration class of the project;

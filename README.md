@@ -33,7 +33,7 @@ enough):
 
 ```toml
 [tool.zallery]
-examples = "docs/examples"
+gallery_root = "docs/examples"
 ```
 
 Create a section with one example:

@@ -26,7 +26,7 @@ def _make_project(tmp_path: Path) -> tuple[Path, Path]:
         "# %% [markdown]\n# # Hello ┏\n\n# %%\nprint('hi')\n", encoding="utf-8"
     )
     (project / "pyproject.toml").write_text(
-        '[tool.zallery]\nexamples = "docs/examples"\n'
+        '[tool.zallery]\ngallery_root = "docs/examples"\n'
     )
     (project / "uv.lock").write_text("# placeholder\n")
     return project, examples
@@ -225,7 +225,7 @@ def test_cli_lists_the_api_objects_an_example_uses(tmp_path: Path) -> None:
     project, examples = _make_project(tmp_path)
     (project / "pyproject.toml").write_text(
         '[project]\nname = "refs-cli-pkg"\n\n'
-        '[tool.zallery]\nexamples = "docs/examples"\napi_references = true\n'
+        '[tool.zallery]\ngallery_root = "docs/examples"\napi_references = true\n'
     )
     (project / "refs_cli_pkg").mkdir()
     (project / "refs_cli_pkg" / "__init__.py").write_text(
@@ -253,7 +253,7 @@ def _api_project(tmp_path: Path, table: str = "") -> Path:
     project, _ = _make_project(tmp_path)
     (project / "pyproject.toml").write_text(
         '[project]\nname = "demo"\n\n'
-        f'[tool.zallery]\nexamples = "docs/examples"\napi_references = true\n{table}'
+        f'[tool.zallery]\ngallery_root = "docs/examples"\napi_references = true\n{table}'
     )
     return project
 
@@ -287,7 +287,7 @@ def test_cli_writes_the_backlinks_template_to_the_folder_the_project_names(
     assert not (project / ".zallery-cache" / "mkdocstrings").exists()
 
 
-def test_cli_returns_1_when_examples_dir_missing(tmp_path: Path) -> None:
+def test_cli_returns_1_when_gallery_root_missing(tmp_path: Path) -> None:
     project = tmp_path / "project"
     project.mkdir()
     (project / "pyproject.toml").write_text("[tool.zallery]\n")
@@ -295,7 +295,7 @@ def test_cli_returns_1_when_examples_dir_missing(tmp_path: Path) -> None:
     proc = _run(project)
 
     assert proc.returncode == 1
-    assert "No examples directory" in proc.stderr
+    assert "No gallery root" in proc.stderr
 
 
 def test_cli_returns_2_without_configuration(tmp_path: Path) -> None:

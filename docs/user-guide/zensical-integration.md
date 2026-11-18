@@ -14,9 +14,9 @@ Zallery writes Markdown pages; the Zensical site provides the rest, in
   ```
 
 - Fallback thumbnails for examples without a `thumbnail` cell, at
-  `<examples>/_assets/default_thumb.svg` and `<examples>/_assets/default_thumb_dark.svg`.
+  `<gallery_root>/_assets/default_thumb.svg` and `<gallery_root>/_assets/default_thumb_dark.svg`.
 - Optionally, thumbnails for examples in which a cell raised an error, at
-  `<examples>/_assets/error_thumb.svg` and `<examples>/_assets/error_thumb_dark.svg`.
+  `<gallery_root>/_assets/error_thumb.svg` and `<gallery_root>/_assets/error_thumb_dark.svg`.
   With both files there, the card of such an example shows them in place of the
   example's own thumbnail, so that a broken example stands out on the index page.
 - Optionally, styles for the classes Zallery emits: `examples-cards` and

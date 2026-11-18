@@ -1,4 +1,4 @@
-"""Discover example source files under the examples root."""
+"""Discover example source files under the gallery root."""
 
 from __future__ import annotations
 

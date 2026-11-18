@@ -377,7 +377,7 @@ def _binder_url(
 
 def build_gallery(
     *,
-    examples_root: Path,
+    gallery_root: Path,
     built_dir: Path,
     cache_root: Path,
     deps_fingerprint: str,
@@ -396,7 +396,7 @@ def build_gallery(
 
     Parameters
     ----------
-    examples_root : pathlib.Path
+    gallery_root : pathlib.Path
         Directory containing the example sections and scripts.
     built_dir : pathlib.Path
         Directory where rendered pages and assets are written.
@@ -458,7 +458,7 @@ def build_gallery(
     """
     if integrations is None:
         integrations = [cls() for cls in load(STOCK)]
-    specs = discover.discover(examples_root)
+    specs = discover.discover(gallery_root)
     run_paths = {path.resolve() for path in only} if only is not None else None
     if run_paths is not None:
         missing = run_paths - {spec.source.resolve() for spec in specs}
@@ -504,5 +504,5 @@ def build_gallery(
                 )
             )
 
-    index_markdown = index.build_index(rendered, root=examples_root)
-    (examples_root / "index.md").write_text(index_markdown, encoding="utf-8")
+    index_markdown = index.build_index(rendered, root=gallery_root)
+    (gallery_root / "index.md").write_text(index_markdown, encoding="utf-8")

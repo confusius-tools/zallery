@@ -25,14 +25,14 @@ def _under(paths: Path | tuple[Path, ...], root: Path) -> tuple[Path, ...]:
 def test_load_config_resolves_paths_under_the_project_root(tmp_path: Path) -> None:
     _write_pyproject(
         tmp_path,
-        'examples = "site/examples"\ncache = "build/.cache"\n'
+        'gallery_root = "site/examples"\ncache = "build/.cache"\n'
         'binder_repo = "me/repo"\nfingerprint = ["lock.txt"]\n',
     )
 
     config = load_config(tmp_path)
 
     assert config.root == tmp_path.resolve()
-    assert config.examples == tmp_path.resolve() / "site" / "examples"
+    assert config.gallery_root == tmp_path.resolve() / "site" / "examples"
     assert config.built == tmp_path.resolve() / "site" / "examples" / "_built"
     assert config.cache == tmp_path.resolve() / "build" / ".cache"
     assert config.binder_repo == "me/repo"
@@ -44,8 +44,8 @@ def test_load_config_defaults(tmp_path: Path) -> None:
 
     config = load_config(tmp_path)
 
-    assert config.examples == tmp_path.resolve() / "docs" / "examples"
-    assert config.built == config.examples / "_built"
+    assert config.gallery_root == tmp_path.resolve() / "docs" / "examples"
+    assert config.built == config.gallery_root / "_built"
     assert config.cache == tmp_path.resolve() / ".zallery-cache"
     assert config.binder_repo is None
     assert config.fingerprint_files == (tmp_path.resolve() / "uv.lock",)
@@ -65,7 +65,13 @@ def test_the_shipped_table_is_the_configuration_of_an_empty_table(
     empty = load_config(tmp_path / "empty")
     copied = load_config(tmp_path / "copied")
 
-    for field in ("examples", "built", "cache", "fingerprint_files", "api_templates"):
+    for field in (
+        "gallery_root",
+        "built",
+        "cache",
+        "fingerprint_files",
+        "api_templates",
+    ):
         relative = getattr(empty, field)
         assert relative != empty.root
         assert _under(getattr(copied, field), copied.root) == _under(
@@ -94,7 +100,7 @@ def test_a_key_the_project_leaves_out_takes_the_shipped_default(
 
 
 def test_load_config_searches_parent_directories(tmp_path: Path) -> None:
-    _write_pyproject(tmp_path, 'examples = "ex"\n')
+    _write_pyproject(tmp_path, 'gallery_root = "ex"\n')
     nested = tmp_path / "docs" / "deep"
     nested.mkdir(parents=True)
     # A pyproject without the table on the way up is skipped, not an error.
@@ -103,7 +109,7 @@ def test_load_config_searches_parent_directories(tmp_path: Path) -> None:
     config = load_config(nested)
 
     assert config.root == tmp_path.resolve()
-    assert config.examples == tmp_path.resolve() / "ex"
+    assert config.gallery_root == tmp_path.resolve() / "ex"
 
 
 def test_load_config_without_table_raises(tmp_path: Path) -> None:
@@ -227,6 +233,13 @@ def test_load_config_points_removed_keys_to_integrations(
     _write_pyproject(tmp_path, table)
 
     with pytest.raises(ConfigError, match="integrations.*user guide"):
+        load_config(tmp_path)
+
+
+def test_load_config_names_the_key_that_replaces_examples(tmp_path: Path) -> None:
+    _write_pyproject(tmp_path, 'examples = "ex"\n')
+
+    with pytest.raises(ConfigError, match="examples .* is now gallery_root"):
         load_config(tmp_path)
 
 

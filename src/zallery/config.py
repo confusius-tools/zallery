@@ -9,9 +9,9 @@ import.
 Keys (all optional: the value of a key the project leaves out is in the
 `config.toml` next to this module, see `DEFAULTS`):
 
-- `examples`: directory of example sections.
+- `gallery_root`: directory of example sections.
 - `built`: where rendered pages go. If not set, the `_built` directory in
-  `examples`.
+  `gallery_root`.
 - `cache`: execution/render cache directory.
 - `binder_repo`: `owner/repo` slug for the Binder launch badges; no badges if unset.
 - `integrations`: integration classes of the project, as `"module:Class"`
@@ -53,16 +53,19 @@ DEFAULTS: dict[str, Any] = tomllib.loads(
 )["tool"][_TABLE]
 """Value of each key a project leaves out of the table, read from the
 `config.toml` Zallery ships. `built` and `binder_repo` have none there: the first
-follows `examples`, the second stays unset."""
+follows `gallery_root`, the second stays unset."""
 
 _KNOWN_KEYS = frozenset(
-    {"examples", "built", "cache", "binder_repo", "integrations", "fingerprint"}
+    {"gallery_root", "built", "cache", "binder_repo", "integrations", "fingerprint"}
     | {"html_thumbnails", "html_thumbnail_css", "api_references", "api_templates"}
 )
 """Keys the table may contain; anything else is a typo and rejected."""
 
 _REMOVED_KEYS = frozenset({"hook", "light", "dark"})
 """Keys of earlier versions, which integration classes replace."""
+
+_RENAMED_KEYS = {"examples": "gallery_root"}
+"""Keys of earlier versions, each with the key that has taken its place."""
 
 
 class ConfigError(ValueError):
@@ -77,7 +80,7 @@ class Config:
     ----------
     root : pathlib.Path
         Directory holding the `pyproject.toml` the table was read from.
-    examples : pathlib.Path
+    gallery_root : pathlib.Path
         Directory of example sections.
     built : pathlib.Path
         Directory rendered pages and assets are written to.
@@ -105,7 +108,7 @@ class Config:
     """
 
     root: Path
-    examples: Path
+    gallery_root: Path
     built: Path
     cache: Path
     binder_repo: str | None
@@ -213,6 +216,9 @@ def load_config(start: Path) -> Config:
             "integration class and name it in integrations (see Integrations in "
             "the user guide)."
         )
+    for old, new in _RENAMED_KEYS.items():
+        if old in table:
+            raise ConfigError(f"{old} in [tool.zallery] of {pyproject} is now {new}.")
     unknown = sorted(set(table) - _KNOWN_KEYS)
     if unknown:
         raise ConfigError(
@@ -222,7 +228,7 @@ def load_config(start: Path) -> Config:
 
     table = DEFAULTS | table
     root = pyproject.parent
-    examples = root / table["examples"]
+    gallery_root = root / table["gallery_root"]
     html_thumbnails = table["html_thumbnails"]
     if not isinstance(html_thumbnails, bool):
         raise ConfigError("html_thumbnails in [tool.zallery] must be true or false.")
@@ -257,8 +263,8 @@ def load_config(start: Path) -> Config:
         )
     return Config(
         root=root,
-        examples=examples,
-        built=root / table["built"] if "built" in table else examples / "_built",
+        gallery_root=gallery_root,
+        built=(root / table["built"] if "built" in table else gallery_root / "_built"),
         cache=cache,
         binder_repo=table.get("binder_repo"),
         integrations=_integrations(table["integrations"], root),
@@ -293,7 +299,7 @@ def deps_fingerprint(config: Config) -> str:
     parts: list[str] = [
         json.dumps(
             {
-                "examples": str(config.examples.relative_to(config.root)),
+                "gallery_root": str(config.gallery_root.relative_to(config.root)),
                 "built": str(config.built.relative_to(config.root)),
                 "binder_repo": config.binder_repo,
                 "integrations": [name(type(i)) for i in config.integrations],

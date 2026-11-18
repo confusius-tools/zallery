@@ -113,7 +113,7 @@ def test_build_index_preserves_section_order_from_input(tmp_path: Path) -> None:
 def test_build_index_flattens_links_in_card_overlays(tmp_path: Path) -> None:
     """Both link forms in a summary are flattened to their text.
 
-    Overlays are copied verbatim onto the index page at the examples root, where an
+    Overlays are copied verbatim onto the index page at the gallery root, where an
     example's relative cross-links (written against its own built page) would not
     resolve and would fail `zensical build --strict`. A mkdocstrings cross-reference
     resolves, but would render as a link inside an overlay that is inert by design.

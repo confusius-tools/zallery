@@ -26,17 +26,17 @@ def _seed_example(root: Path, section: str, name: str, body: str) -> Path:
 
 @pytest.mark.slow
 def test_build_gallery_produces_expected_artifacts(gallery_paths: GalleryPaths) -> None:
-    examples_root, built_dir, cache_root = gallery_paths
+    gallery_root, built_dir, cache_root = gallery_paths
 
     _seed_example(
-        examples_root,
+        gallery_root,
         "io",
         "hello",
         "# %% [markdown]\n# # Hello\n#\n# Tiny example.\n\n# %%\nprint('hi')\n",
     )
 
     build_gallery(
-        examples_root=examples_root,
+        gallery_root=gallery_root,
         built_dir=built_dir,
         cache_root=cache_root,
         deps_fingerprint="testdeps==1.0",
@@ -47,14 +47,14 @@ def test_build_gallery_produces_expected_artifacts(gallery_paths: GalleryPaths) 
     assert "```python\nprint('hi')\n```" in first
     assert (built_dir / "io" / "hello.py").is_file()
     assert (built_dir / "io" / "hello.ipynb").is_file()
-    assert (examples_root / "index.md").read_text().count("Hello") >= 1
+    assert (gallery_root / "index.md").read_text().count("Hello") >= 1
 
     # Wipe the built dir but keep the cache. A second run must restore it
     # without re-executing.
     shutil.rmtree(built_dir)
 
     build_gallery(
-        examples_root=examples_root,
+        gallery_root=gallery_root,
         built_dir=built_dir,
         cache_root=cache_root,
         deps_fingerprint="testdeps==1.0",
@@ -70,10 +70,10 @@ def test_build_gallery_produces_expected_artifacts(gallery_paths: GalleryPaths) 
 def test_build_gallery_prints_progress_when_non_interactive(
     gallery_paths: GalleryPaths, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    examples_root, built_dir, cache_root = gallery_paths
+    gallery_root, built_dir, cache_root = gallery_paths
 
     _seed_example(
-        examples_root,
+        gallery_root,
         "io",
         "hello",
         "# %% [markdown]\n# # Hello\n\n# %%\nprint('hi')\n",
@@ -83,7 +83,7 @@ def test_build_gallery_prints_progress_when_non_interactive(
     # builder takes its non-interactive path and emits plain progress lines
     # instead of the rich live bar.
     build_gallery(
-        examples_root=examples_root,
+        gallery_root=gallery_root,
         built_dir=built_dir,
         cache_root=cache_root,
         deps_fingerprint="testdeps==1.0",
@@ -95,7 +95,7 @@ def test_build_gallery_prints_progress_when_non_interactive(
     # A second run hits the cache and announces it.
     shutil.rmtree(built_dir)
     build_gallery(
-        examples_root=examples_root,
+        gallery_root=gallery_root,
         built_dir=built_dir,
         cache_root=cache_root,
         deps_fingerprint="testdeps==1.0",
@@ -106,21 +106,21 @@ def test_build_gallery_prints_progress_when_non_interactive(
 def test_build_gallery_no_cache_reexecutes_selected_and_restores_the_rest(
     gallery_paths: GalleryPaths, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    examples_root, built_dir, cache_root = gallery_paths
+    gallery_root, built_dir, cache_root = gallery_paths
     wanted = _seed_example(
-        examples_root,
+        gallery_root,
         "io",
         "hello",
         "# %% [markdown]\n# # Hello\n\n# %%\nprint('hi')\n",
     )
     _seed_example(
-        examples_root,
+        gallery_root,
         "misc",
         "other",
         "# %% [markdown]\n# # Other\n\n# %%\nprint('bye')\n",
     )
     build_gallery(
-        examples_root=examples_root,
+        gallery_root=gallery_root,
         built_dir=built_dir,
         cache_root=cache_root,
         deps_fingerprint="testdeps==1.0",
@@ -130,7 +130,7 @@ def test_build_gallery_no_cache_reexecutes_selected_and_restores_the_rest(
     cached_md.write_text("stale cached page\n")
 
     build_gallery(
-        examples_root=examples_root,
+        gallery_root=gallery_root,
         built_dir=built_dir,
         cache_root=cache_root,
         deps_fingerprint="testdeps==1.0",
@@ -150,23 +150,23 @@ def test_build_gallery_no_cache_reexecutes_selected_and_restores_the_rest(
 def test_build_gallery_runs_only_selected_and_stubs_the_rest(
     gallery_paths: GalleryPaths,
 ) -> None:
-    examples_root, built_dir, cache_root = gallery_paths
+    gallery_root, built_dir, cache_root = gallery_paths
 
     wanted = _seed_example(
-        examples_root,
+        gallery_root,
         "io",
         "hello",
         "# %% [markdown]\n# # Hello\n\n# %%\nprint('hi')\n",
     )
     _seed_example(
-        examples_root,
+        gallery_root,
         "misc",
         "skipme",
         "# %% [markdown]\n# # Skip\n\n# %%\nprint('bye')\n",
     )
 
     build_gallery(
-        examples_root=examples_root,
+        gallery_root=gallery_root,
         built_dir=built_dir,
         cache_root=cache_root,
         deps_fingerprint="testdeps==1.0",
@@ -183,7 +183,7 @@ def test_build_gallery_runs_only_selected_and_stubs_the_rest(
     # It is not cached, so a later run would still execute it.
     assert not list(cache_root.glob("**/misc/skipme"))
     # The index still lists the full gallery.
-    index_md = (examples_root / "index.md").read_text()
+    index_md = (gallery_root / "index.md").read_text()
     assert "Hello" in index_md
     assert "Skip" in index_md
 
@@ -191,35 +191,35 @@ def test_build_gallery_runs_only_selected_and_stubs_the_rest(
 def test_build_gallery_raises_for_unknown_only_path(
     gallery_paths: GalleryPaths,
 ) -> None:
-    examples_root, built_dir, cache_root = gallery_paths
+    gallery_root, built_dir, cache_root = gallery_paths
     _seed_example(
-        examples_root, "io", "hello", "# %% [markdown]\n# # Hi\n\n# %%\nx = 1\n"
+        gallery_root, "io", "hello", "# %% [markdown]\n# # Hi\n\n# %%\nx = 1\n"
     )
 
     with pytest.raises(ValueError, match="Not discoverable"):
         build_gallery(
-            examples_root=examples_root,
+            gallery_root=gallery_root,
             built_dir=built_dir,
             cache_root=cache_root,
             deps_fingerprint="testdeps==1.0",
-            only=[examples_root / "io" / "ghost.py"],
+            only=[gallery_root / "io" / "ghost.py"],
         )
 
 
 @pytest.mark.slow
 def test_build_gallery_embeds_binder_launch_url(gallery_paths: GalleryPaths) -> None:
-    examples_root, built_dir, cache_root = gallery_paths
-    repo_root = examples_root.parent.parent
+    gallery_root, built_dir, cache_root = gallery_paths
+    repo_root = gallery_root.parent.parent
 
     _seed_example(
-        examples_root,
+        gallery_root,
         "io",
         "hello",
         "# %% [markdown]\n# # Hello\n\n# %%\nprint('hi')\n",
     )
 
     build_gallery(
-        examples_root=examples_root,
+        gallery_root=gallery_root,
         built_dir=built_dir,
         cache_root=cache_root,
         deps_fingerprint="testdeps==1.0",
@@ -237,7 +237,7 @@ def test_build_gallery_embeds_binder_launch_url(gallery_paths: GalleryPaths) -> 
 
     # A page restored from cache is stamped with the ref of the new build.
     build_gallery(
-        examples_root=examples_root,
+        gallery_root=gallery_root,
         built_dir=built_dir,
         cache_root=cache_root,
         deps_fingerprint="testdeps==1.0",
@@ -256,21 +256,21 @@ def test_build_gallery_shows_the_error_thumbnail_of_an_example_that_raises(
     gallery_paths: GalleryPaths,
 ) -> None:
     """Also from the cache: the second build does not run the example again."""
-    examples_root, built_dir, cache_root = gallery_paths
+    gallery_root, built_dir, cache_root = gallery_paths
     for name in ("error_thumb.svg", "error_thumb_dark.svg"):
-        (examples_root / "_assets" / name).write_text("<svg/>")
-    _seed_example(examples_root, "io", "fine", "# %%\nprint('hi')\n")
-    _seed_example(examples_root, "io", "broken", "# %%\nraise ValueError('no')\n")
+        (gallery_root / "_assets" / name).write_text("<svg/>")
+    _seed_example(gallery_root, "io", "fine", "# %%\nprint('hi')\n")
+    _seed_example(gallery_root, "io", "broken", "# %%\nraise ValueError('no')\n")
 
     for _ in range(2):
         build_gallery(
-            examples_root=examples_root,
+            gallery_root=gallery_root,
             built_dir=built_dir,
             cache_root=cache_root,
             deps_fingerprint="testdeps==1.0",
         )
 
-        index = (examples_root / "index.md").read_text()
+        index = (gallery_root / "index.md").read_text()
         cards = {
             card.split("](")[1].split(")")[0]: card for card in index.split("-   ")[1:]
         }
@@ -286,13 +286,13 @@ _FINE = "# %% [markdown]\n# # Fine\n\n# %%\nprint('hi')\n"
 def test_build_gallery_aborts_at_the_first_example_that_raises_when_asked(
     gallery_paths: GalleryPaths,
 ) -> None:
-    examples_root, built_dir, cache_root = gallery_paths
-    failing = _seed_example(examples_root, "a_first", "boom", _BOOM)
-    _seed_example(examples_root, "b_second", "fine", _FINE)
+    gallery_root, built_dir, cache_root = gallery_paths
+    failing = _seed_example(gallery_root, "a_first", "boom", _BOOM)
+    _seed_example(gallery_root, "b_second", "fine", _FINE)
 
     with pytest.raises(ExampleError, match="ValueError: boom in the example") as raised:
         build_gallery(
-            examples_root=examples_root,
+            gallery_root=gallery_root,
             built_dir=built_dir,
             cache_root=cache_root,
             deps_fingerprint="testdeps==1.0",
@@ -301,18 +301,18 @@ def test_build_gallery_aborts_at_the_first_example_that_raises_when_asked(
 
     assert raised.value.source == failing
     assert not (built_dir / "b_second" / "fine.md").exists()
-    assert not (examples_root / "index.md").exists()
+    assert not (gallery_root / "index.md").exists()
 
 
 @pytest.mark.slow
 def test_build_gallery_runs_a_cached_example_that_raised_again_to_abort(
     gallery_paths: GalleryPaths,
 ) -> None:
-    examples_root, built_dir, cache_root = gallery_paths
-    _seed_example(examples_root, "io", "boom", _BOOM)
+    gallery_root, built_dir, cache_root = gallery_paths
+    _seed_example(gallery_root, "io", "boom", _BOOM)
     build = partial(
         build_gallery,
-        examples_root=examples_root,
+        gallery_root=gallery_root,
         built_dir=built_dir,
         cache_root=cache_root,
         deps_fingerprint="testdeps==1.0",
@@ -332,11 +332,11 @@ def test_build_gallery_runs_a_cached_example_that_raised_again_to_abort(
 def test_build_gallery_writes_the_backlinks_template_with_an_api_package(
     gallery_paths: GalleryPaths,
 ) -> None:
-    examples_root, built_dir, cache_root = gallery_paths
-    _seed_example(examples_root, "io", "hello", _FINE)
+    gallery_root, built_dir, cache_root = gallery_paths
+    _seed_example(gallery_root, "io", "hello", _FINE)
     build = partial(
         build_gallery,
-        examples_root=examples_root,
+        gallery_root=gallery_root,
         built_dir=built_dir,
         cache_root=cache_root,
         deps_fingerprint="testdeps==1.0",
