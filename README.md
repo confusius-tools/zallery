@@ -9,10 +9,10 @@
 documentation sites from plain Python scripts.
 
 Each example is a [jupytext](https://jupytext.readthedocs.io) percent-format `.py`
-file. Zallery runs it once in a Jupyter kernel, renders it as a notebook-style
-Markdown page with code, outputs, and `.py`/`.ipynb` downloads, and writes an index
-page with one card per example. Every figure comes out twice, for the light and
-the dark color scheme, from that single run.
+file. Zallery runs it once in a Jupyter kernel, renders it as a notebook-style Markdown
+page with code, outputs, and `.py`/`.ipynb` downloads, and writes an index page with one
+card per example. Outputs have extensible built-in support for light and dark color
+scheme.
 
 ## Installation
 
@@ -58,10 +58,9 @@ Build the gallery from anywhere inside the project:
 uv run zallery
 ```
 
-This writes `docs/examples/index.md` (the card index) and
+This generates `docs/examples/index.md` (the card index) and
 `docs/examples/_built/my-section/hello.md` with its images and downloads. Add them
-to the site navigation like any other page; both are generated, so keep them and
-the cache directory out of version control.
+to the site navigation like any other page.
 
 ## Command line
 

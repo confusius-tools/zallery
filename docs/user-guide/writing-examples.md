@@ -86,7 +86,7 @@ block follows the same pattern [as in Zensical](https://zensical.org/docs/author
 --8<-- "docs/examples/03_zensical/04_annotations.py:23:30"
 ```
 
-### Error handling
+## Error handling
 
 A cell that raises does not stop the build. Its traceback is rendered on the page, as a
 notebook shows it, and the cells after it still run.

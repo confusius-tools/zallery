@@ -51,12 +51,12 @@ nav = [
         ]},
     ]},
     { "API reference" = [
-        { "zallery" = "api/zallery.md" },
-        { "zallery.integration" = "api/integration.md" },
-        { "zallery.integration.matplotlib" = "api/matplotlib.md" },
-        { "zallery.integration.plotly" = "api/plotly.md" },
-        { "zallery.integration.pyvista" = "api/pyvista.md" },
-        { "zallery.integration.xarray" = "api/xarray.md" },
+        { "Zallery" = "api/zallery.md" },
+        { "Integration" = "api/integration.md" },
+        { "Matplotlib integration" = "api/matplotlib.md" },
+        { "Plotly integration" = "api/plotly.md" },
+        { "PyVista integration" = "api/pyvista.md" },
+        { "Xarray integration" = "api/xarray.md" },
     ]},
 ]
 

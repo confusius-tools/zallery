@@ -1,5 +1,3 @@
-# `zallery.integration`
-
 ::: zallery.integration
     options:
       members:
