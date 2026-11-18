@@ -206,6 +206,52 @@ def test_build_gallery_raises_for_unknown_only_path(
         )
 
 
+def test_build_gallery_writes_a_page_for_each_section(
+    gallery_paths: GalleryPaths,
+) -> None:
+    gallery_root, built_dir, cache_root = gallery_paths
+    _seed_example(gallery_root, "io", "hello", "# %% [markdown]\n# # Hi\n")
+    _seed_example(gallery_root, "glm", "fit", "# %% [markdown]\n# # Fit\n")
+    (gallery_root / "io" / "_section.md").write_text(
+        "---\nicon: lucide/bug\n---\n\n# Input\n\nReading files.\n"
+    )
+
+    # No example runs: the pages come from the sources alone.
+    build_gallery(
+        gallery_root=gallery_root,
+        built_dir=built_dir,
+        cache_root=cache_root,
+        deps_fingerprint="testdeps==1.0",
+        only=[],
+    )
+
+    io_page = (built_dir / "io" / "index.md").read_text()
+    assert io_page.startswith("---\nicon: lucide/bug\n---\n\n# Input\n")
+    assert "**[Hi](hello.md)**" in io_page
+    assert "Fit" not in io_page
+    assert "**[Fit](fit.md)**" in (built_dir / "glm" / "index.md").read_text()
+    assert "icon" not in (gallery_root / "index.md").read_text()
+
+
+def test_build_gallery_refuses_an_example_named_index(
+    gallery_paths: GalleryPaths,
+) -> None:
+    gallery_root, built_dir, cache_root = gallery_paths
+    source = _seed_example(gallery_root, "io", "01_index", "# %%\nx = 1\n")
+
+    with pytest.raises(ValueError, match="page of its section") as error:
+        build_gallery(
+            gallery_root=gallery_root,
+            built_dir=built_dir,
+            cache_root=cache_root,
+            deps_fingerprint="testdeps==1.0",
+            only=[],
+        )
+
+    assert str(source) in str(error.value)
+    assert not built_dir.exists()
+
+
 @pytest.mark.slow
 def test_build_gallery_embeds_binder_launch_url(gallery_paths: GalleryPaths) -> None:
     gallery_root, built_dir, cache_root = gallery_paths

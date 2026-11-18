@@ -87,7 +87,7 @@ src/zallery/
 ├── templates/   # mkdocstrings templates, copied to the cache for the site
 ├── render.py    # executed notebook to Markdown page and images
 ├── thumbnail.py # HTML output to thumbnail PNGs, with a headless browser
-└── index.py     # card index page
+└── index.py     # card index page, and the page of each section
 ```
 
 `setup`, `retheme` and the private capture methods of an integration class run in
@@ -229,6 +229,12 @@ classes when it loads the configuration.
   which the pipeline reads to pick the error thumbnail. A comment, not a file: the
   state has to come back from the cache, and nothing removes a stale file from
   `_built` once the example is fixed.
+- The page of a section is `index.md` in the built folder of the section, so no
+  example may be named `index`: `build_gallery` refuses one before it runs
+  anything. Zensical shows an icon in the navigation only from the front matter
+  of a page, and for a section only from its index page (`navigation.indexes`):
+  hence the page. Front matter of `_section.md` goes to that page only; the
+  gallery index drops it, where it would show as text.
 - Tab cells are written as raw HTML in the markup of `pymdownx.tabbed`, not with the
   `===` syntax: indented under `===`, an HTML output is parsed as Markdown text and
   mangled (styles, scripts, table cells). `md_in_html` is no help: it wraps the tab

@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from zallery._types import ExampleSpec, RenderedExample
-from zallery.index import build_index
+from zallery.index import build_index, build_section_pages
 
 
 def _spec(source: Path, section: str) -> ExampleSpec:
@@ -241,3 +241,102 @@ def test_build_index_keeps_the_thumbnail_of_a_failed_example_without_error_asset
 
     assert "_built/io/broken_thumb_light.png#only-light" in md
     assert "error_thumb" not in md
+
+
+def _example(
+    root: Path, section: str, name: str, title: str, *, intro: str | None = None
+) -> RenderedExample:
+    """Return a rendered example of a section, built under `root/_built`."""
+    source = root / section / f"{name}.py"
+    spec = _spec(source, section)
+    if intro is not None:
+        spec = ExampleSpec(source, name, section, intro)
+    return RenderedExample(
+        spec=spec,
+        title=title,
+        summary="",
+        md_path=root / "_built" / section / f"{name}.md",
+        thumbnail_light=None,
+        thumbnail_dark=None,
+    )
+
+
+def test_build_section_pages_gives_each_section_its_page(tmp_path: Path) -> None:
+    rendered = [
+        _example(tmp_path, "io", "load", "Load a file"),
+        _example(tmp_path, "io", "save", "Save a file"),
+        _example(tmp_path, "glm", "fit", "Fit a model"),
+    ]
+
+    pages = build_section_pages(rendered, root=tmp_path)
+
+    assert set(pages) == {
+        tmp_path / "_built" / "io" / "index.md",
+        tmp_path / "_built" / "glm" / "index.md",
+    }
+    io_page = pages[tmp_path / "_built" / "io" / "index.md"]
+    # The title of the section is the title of the page.
+    assert io_page.startswith("# IO\n\nIntro for io.\n")
+    # Its own examples only, with links from the folder of the page.
+    assert "**[Load a file](load.md)**" in io_page
+    assert "**[Save a file](save.md)**" in io_page
+    assert "Fit a model" not in io_page
+    assert 'src="../../_assets/default_thumb.svg#only-light"' in io_page
+
+
+def test_build_section_pages_links_the_thumbnail_from_the_page(tmp_path: Path) -> None:
+    folder = tmp_path / "_built" / "io"
+    example = RenderedExample(
+        spec=_spec(tmp_path / "io" / "load.py", "io"),
+        title="Load a file",
+        summary="",
+        md_path=folder / "load.md",
+        thumbnail_light=folder / "images" / "load_thumb_light.png",
+        thumbnail_dark=folder / "images" / "load_thumb_dark.png",
+    )
+
+    page = build_section_pages([example], root=tmp_path)[folder / "index.md"]
+
+    assert 'src="images/load_thumb_light.png#only-light"' in page
+    assert 'src="images/load_thumb_dark.png#only-dark"' in page
+
+
+def test_build_section_pages_names_a_section_without_intro_by_its_folder(
+    tmp_path: Path,
+) -> None:
+    rendered = [_example(tmp_path, "glm", "fit", "Fit a model", intro="")]
+
+    page = build_section_pages(rendered, root=tmp_path)[
+        tmp_path / "_built" / "glm" / "index.md"
+    ]
+
+    assert page.startswith("# glm\n")
+
+
+_FRONT_MATTER_INTRO = "---\nicon: lucide/bug\n---\n\n# Input\n\nReading files.\n"
+
+
+def test_build_section_pages_keeps_the_front_matter_of_the_section(
+    tmp_path: Path,
+) -> None:
+    rendered = [
+        _example(tmp_path, "io", "load", "Load a file", intro=_FRONT_MATTER_INTRO)
+    ]
+
+    page = build_section_pages(rendered, root=tmp_path)[
+        tmp_path / "_built" / "io" / "index.md"
+    ]
+
+    assert page.startswith("---\nicon: lucide/bug\n---\n\n# Input\n\nReading files.\n")
+
+
+def test_build_index_leaves_out_the_front_matter_of_a_section(tmp_path: Path) -> None:
+    rendered = [
+        _example(tmp_path, "io", "load", "Load a file", intro=_FRONT_MATTER_INTRO)
+    ]
+
+    index_md = build_index(rendered, root=tmp_path)
+
+    assert "## Input\n\nReading files." in index_md
+    assert "icon" not in index_md
+    assert "---\n\n##" not in index_md

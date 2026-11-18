@@ -394,6 +394,9 @@ def build_gallery(
 ) -> None:
     """Run the full pipeline and write the gallery to disk.
 
+    Next to the page of each example, it writes the index page of the gallery and
+    one page for each section (see `zallery.index`).
+
     Parameters
     ----------
     gallery_root : pathlib.Path
@@ -451,10 +454,11 @@ def build_gallery(
     Raises
     ------
     ValueError
-        If a path in `only` does not match any discovered example.
+        If a path in `only` does not match any discovered example, or an example
+        is named `index`: its page would be the page of its section.
     zallery.execute.ExampleError
         If a cell raises and `abort_on_error` is set. The examples after it are
-        not built and the index page is not written.
+        not built, and the index page and the section pages are not written.
     """
     if integrations is None:
         integrations = [cls() for cls in load(STOCK)]
@@ -465,6 +469,15 @@ def build_gallery(
         if missing:
             listing = "\n".join(f"  {path}" for path in sorted(missing))
             raise ValueError(f"Not discoverable as example scripts:\n{listing}")
+    reserved = [
+        spec.source for spec in specs if f"{spec.base_name}.md" == index.SECTION_PAGE
+    ]
+    if reserved:
+        listing = "\n".join(f"  {path}" for path in reserved)
+        raise ValueError(
+            "An example cannot be named index: its page would be the page of its "
+            f"section.\n{listing}"
+        )
     cache_root.mkdir(parents=True, exist_ok=True)
     if api_package is not None:
         _write_api_templates(
@@ -506,3 +519,6 @@ def build_gallery(
 
     index_markdown = index.build_index(rendered, root=gallery_root)
     (gallery_root / "index.md").write_text(index_markdown, encoding="utf-8")
+    section_pages = index.build_section_pages(rendered, root=gallery_root)
+    for path, markdown in section_pages.items():
+        path.write_text(markdown, encoding="utf-8")

@@ -1,8 +1,9 @@
-"""Generate the gallery index page."""
+"""Generate the gallery index page and the page of each section."""
 
 from __future__ import annotations
 
 import html as html_lib
+import os
 import re
 from collections import defaultdict
 from pathlib import Path
@@ -26,6 +27,12 @@ _DEFAULT_HEADER = (
     "page with code, outputs, and downloadable source files.\n"
 )
 """Index page header used when the gallery root has no `_index.md`."""
+
+SECTION_PAGE = "index.md"
+"""File name of the page of a section, next to the pages of its examples."""
+
+_FRONT_MATTER = re.compile(r"\A---\r?\n.*?\r?\n---\r?\n", re.DOTALL)
+"""Front matter that opens a `_section.md`: metadata of the page of the section."""
 
 # Markdown inline link `[text](url)`, and mkdocstrings cross-reference `[text][ident]`.
 # Card overlays are copied verbatim onto the gallery index page (at the gallery root),
@@ -63,30 +70,88 @@ def _demote_h1(text: str) -> str:
     return first + ("\n" + lines[1] if len(lines) > 1 else "")
 
 
-def _card_image_markdown(rex: RenderedExample, *, root: Path, href: str) -> str:
+def _split_front_matter(text: str) -> tuple[str, str]:
+    """Split the content of a `_section.md` into its front matter and the rest.
+
+    Parameters
+    ----------
+    text : str
+        The content of the file.
+
+    Returns
+    -------
+    front_matter : str
+        The front matter with its two `---` lines, or an empty string if the
+        file has none.
+    body : str
+        The rest of the file.
+    """
+    match = _FRONT_MATTER.match(text)
+    if match is None:
+        return "", text
+    return match.group(), text[match.end() :]
+
+
+def _link(target: Path, page_dir: Path) -> str:
+    """Return the relative link to a file from a page.
+
+    Parameters
+    ----------
+    target : pathlib.Path
+        The file to link to.
+    page_dir : pathlib.Path
+        Folder of the page that holds the link.
+
+    Returns
+    -------
+    str
+        The path of `target` from `page_dir`, with forward slashes.
+    """
+    return Path(os.path.relpath(target, page_dir)).as_posix()
+
+
+def _card_image_markdown(
+    rex: RenderedExample, *, root: Path, page_dir: Path, href: str
+) -> str:
     """Return theme-aware thumbnail markup for one example card.
 
     An example that raised shows the error thumbnails, whatever its own: the card
     must show the fault. Without error thumbnails in the gallery root, it is
     treated as any other example.
+
+    Parameters
+    ----------
+    rex : RenderedExample
+        The example of the card.
+    root : pathlib.Path
+        Gallery root, which holds the default and the error thumbnails.
+    page_dir : pathlib.Path
+        Folder of the page the card is on: the pictures are linked from it.
+    href : str
+        Link to the page of the example.
+
+    Returns
+    -------
+    str
+        The two pictures, one for each color scheme, as a link to the example.
     """
     if (
         rex.failed
         and (root / _ERROR_THUMB_LIGHT).is_file()
         and (root / _ERROR_THUMB_DARK).is_file()
     ):
-        light, dark = _ERROR_THUMB_LIGHT, _ERROR_THUMB_DARK
+        light, dark = root / _ERROR_THUMB_LIGHT, root / _ERROR_THUMB_DARK
         alt = "Example that raised an error"
     elif rex.thumbnail_light is None or rex.thumbnail_dark is None:
-        light, dark = _DEFAULT_THUMB_LIGHT, _DEFAULT_THUMB_DARK
+        light, dark = root / _DEFAULT_THUMB_LIGHT, root / _DEFAULT_THUMB_DARK
         alt = "Example thumbnail"
     else:
-        light = rex.thumbnail_light.relative_to(root).as_posix()
-        dark = rex.thumbnail_dark.relative_to(root).as_posix()
+        light, dark = rex.thumbnail_light, rex.thumbnail_dark
         alt = html_lib.escape(rex.title, quote=True)
     return (
-        f'[<img class="skip-lightbox" src="{light}#only-light" alt="{alt}">'
-        f'<img class="skip-lightbox" src="{dark}#only-dark" alt="{alt}">]({href})'
+        f'[<img class="skip-lightbox" src="{_link(light, page_dir)}#only-light" '
+        f'alt="{alt}"><img class="skip-lightbox" '
+        f'src="{_link(dark, page_dir)}#only-dark" alt="{alt}">]({href})'
     )
 
 
@@ -120,6 +185,96 @@ def _card_overlay_markdown(rex: RenderedExample) -> str:
     return f'<span class="examples-card-summary" aria-hidden="true">{summary}</span>'
 
 
+def _by_section(rendered: list[RenderedExample]) -> dict[str, list[RenderedExample]]:
+    """Group the rendered examples by section.
+
+    Parameters
+    ----------
+    rendered : list[RenderedExample]
+        The rendered examples, in the order their sections should appear.
+
+    Returns
+    -------
+    dict[str, list[RenderedExample]]
+        The examples of each section. Sections are in the order they are first
+        seen: `discover()` yields specs sorted by the section folder name (`01_io`
+        before `02_registration`), not by the name without its prefix.
+    """
+    by_section: dict[str, list[RenderedExample]] = defaultdict(list)
+    for rendered_example in rendered:
+        by_section[rendered_example.spec.section].append(rendered_example)
+    return by_section
+
+
+def _cards(items: list[RenderedExample], *, root: Path, page_dir: Path) -> str:
+    """Return the card grid of the examples of one section.
+
+    Parameters
+    ----------
+    items : list[RenderedExample]
+        The examples of the section.
+    root : pathlib.Path
+        Gallery root, which holds the default and the error thumbnails.
+    page_dir : pathlib.Path
+        Folder of the page the grid is on: links are relative to it.
+
+    Returns
+    -------
+    str
+        One card for each example, sorted by source file name.
+    """
+    parts = ['<div class="grid cards examples-cards" markdown>\n\n']
+    for rendered_example in sorted(items, key=lambda item: item.spec.source.name):
+        href = _link(rendered_example.md_path, page_dir)
+        image = _card_image_markdown(
+            rendered_example, root=root, page_dir=page_dir, href=href
+        )
+        overlay = _card_overlay_markdown(rendered_example)
+        parts.append(
+            f"-   {image}{overlay}\n\n    ---\n\n"
+            f"    **[{rendered_example.title}]({href})**\n\n"
+        )
+    parts.append("</div>\n\n")
+    return "".join(parts)
+
+
+def build_section_pages(
+    rendered: list[RenderedExample], *, root: Path
+) -> dict[Path, str]:
+    """Return the Markdown text of the page of each section.
+
+    The page of a section is next to the pages of its examples. It holds the
+    content of the `_section.md` of the section, front matter included, then one
+    card for each example. A site lists it first under the section in its
+    navigation: the front matter then gives the section its icon there.
+
+    Parameters
+    ----------
+    rendered : list[RenderedExample]
+        The rendered examples.
+    root : pathlib.Path
+        Gallery root, which holds the default and the error thumbnails.
+
+    Returns
+    -------
+    dict[pathlib.Path, str]
+        The text of each page, by the path to write it to.
+    """
+    pages: dict[Path, str] = {}
+    for section, items in _by_section(rendered).items():
+        page_dir = items[0].md_path.parent
+        front_matter, intro = _split_front_matter(items[0].spec.section_intro)
+        if front_matter:
+            front_matter = front_matter.rstrip() + "\n\n"
+        pages[page_dir / SECTION_PAGE] = (
+            front_matter
+            + (intro.strip() or f"# {section}")
+            + "\n\n"
+            + _cards(items, root=root, page_dir=page_dir)
+        )
+    return pages
+
+
 def build_index(rendered: list[RenderedExample], *, root: Path) -> str:
     """Return the Markdown text of the gallery index page.
 
@@ -136,10 +291,6 @@ def build_index(rendered: list[RenderedExample], *, root: Path) -> str:
     str
         The index page: the header, then one card grid per section.
     """
-    by_section: dict[str, list[RenderedExample]] = defaultdict(list)
-    for rendered_example in rendered:
-        by_section[rendered_example.spec.section].append(rendered_example)
-
     header_path = root / _INDEX_HEADER
     header = (
         header_path.read_text(encoding="utf-8")
@@ -148,22 +299,10 @@ def build_index(rendered: list[RenderedExample], *, root: Path) -> str:
     )
     parts: list[str] = [header.rstrip() + "\n\n"]
 
-    # Iterate in insertion order; discover() yields specs sorted by the section
-    # folder name (e.g. "01_io" before "02_registration"), so the index reflects
-    # that explicit ordering rather than alphabetical order of the stripped name.
-    for section, items in by_section.items():
-        intro = _demote_h1(items[0].spec.section_intro.strip())
+    for section, items in _by_section(rendered).items():
+        # The front matter of a section is for its own page.
+        intro = _demote_h1(_split_front_matter(items[0].spec.section_intro)[1].strip())
         parts.append((intro if intro else f"## {section}") + "\n\n")
-        parts.append('<div class="grid cards examples-cards" markdown>\n\n')
-        for rendered_example in sorted(items, key=lambda item: item.spec.source.name):
-            href = rendered_example.md_path.relative_to(root).as_posix()
-            image = _card_image_markdown(rendered_example, root=root, href=href)
-            overlay = _card_overlay_markdown(rendered_example)
-            card = (
-                f"-   {image}{overlay}\n\n    ---\n\n"
-                f"    **[{rendered_example.title}]({href})**"
-            )
-            parts.append(card + "\n\n")
-        parts.append("</div>\n\n")
+        parts.append(_cards(items, root=root, page_dir=root))
 
     return "".join(parts)
