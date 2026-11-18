@@ -5,7 +5,7 @@ color schemes, is said by an *integration* class. Zallery ships four:
 
 | Class | For |
 |---|---|
-| `zallery.integration.matplotlib:Matplotlib` | [matplotlib figures](light-and-dark-figures.md) |
+| `zallery.integration.matplotlib:Matplotlib` | [matplotlib figures](matplotlib-figures.md) |
 | `zallery.integration.plotly:Plotly` | [plotly figures](plotly-figures.md) |
 | `zallery.integration.pyvista:PyVista` | [PyVista plots](pyvista-plots.md) |
 | `zallery.integration.xarray:Xarray` | HTML views of xarray objects |

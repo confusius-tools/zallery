@@ -28,7 +28,7 @@ pip install zallery
 
 ## Quick start
 
-Add a `[tool.zallery]` section to the project's `pyproject.toml` (an empty section is
+Add a `#!toml [tool.zallery]` section to the project's `pyproject.toml` (an empty section is
 enough):
 
 ```toml
@@ -58,9 +58,10 @@ Build the gallery from anywhere inside the project:
 uv run zallery
 ```
 
-This generates `docs/examples/index.md` (the card index) and
-`docs/examples/_built/my-section/hello.md` with its images and downloads. Add them
-to the site navigation like any other page.
+This generates `docs/examples/index.md` (the card index),
+`docs/examples/_built/my-section/hello.md` with its images and downloads, and
+`docs/examples/_built/my-section/index.md` (the page of the section). Add them
+to the site navigation in `zensical.toml` like any other page.
 
 ## Command line
 
@@ -100,11 +101,13 @@ zallery path/to/example_1.py path/to/example_2.py
 The user guide has one page for each topic:
 
 - [Writing examples](https://zallery.confusius.tools/user-guide/writing-examples/):
-  where examples live, their titles and order, and the cell tags.
+  Syntax, tips and tricks to write and render your first example.
 - [Light and dark figures](https://zallery.confusius.tools/user-guide/light-and-dark-figures/):
-  how a matplotlib figure gets its two looks, and how to change the colors.
+  how an output gets a light look and a dark look from one run.
 - [Integrations](https://zallery.confusius.tools/user-guide/integrations/):
   the classes that say what changes between the two color schemes, and how to write one.
+- [Matplotlib figures](https://zallery.confusius.tools/user-guide/matplotlib-figures/):
+  the colors, colormaps and palettes of each color scheme, and how to change them.
 - [Plotly figures](https://zallery.confusius.tools/user-guide/plotly-figures/):
   interactive figures in both color schemes.
 - [PyVista plots](https://zallery.confusius.tools/user-guide/pyvista-plots/):
@@ -118,12 +121,6 @@ The user guide has one page for each topic:
 - [Zensical integration](https://zallery.confusius.tools/user-guide/zensical-integration/):
   what the site has to provide.
 
-## Relationship to ConfUSIus
-
-Zallery is extracted from [ConfUSIus](https://github.com/confusius-tools/confusius),
-where it builds the documentation's example gallery. It does not depend on
-ConfUSIus and makes no assumption about what the examples compute.
-
 ## Development
 
 ```bash
@@ -135,4 +132,5 @@ just serve-docs    # build the example gallery in docs/examples and serve the do
 
 ## License
 
-BSD-3-Clause. See `LICENSE`.
+BSD-3-Clause. See
+[LICENSE](https://github.com/confusius-tools/zallery/blob/main/LICENSE).

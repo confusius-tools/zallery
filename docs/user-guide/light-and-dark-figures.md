@@ -1,88 +1,79 @@
 # Light and dark figures
 
-Every example runs once, under a light matplotlib style. Each figure is then
-re-rendered for dark mode without re-executing anything: Zallery swaps the theme
-colors (figure background, axes background, black foreground) and the default
-diverging colormap (`coolwarm` to `berlin`) on the drawn artists, prints a second
-PNG, and restores the exact properties it changed. Both PNGs land on the page, and
-the site shows the one matching the reader's color scheme.
+Zallery runs each example one time. From this run, an output can get two looks: one for
+the light color scheme of the site and one for the dark color scheme. The page of the
+example holds the two looks. The site shows the look of the color scheme that the reader
+uses.
 
-What this means when writing an example:
+## Integrations
 
-- Read backgrounds from matplotlib rather than hardcoding them, for example
-  `mpl.rcParams["figure.facecolor"]`. Figures created with `plt.subplots` or
-  `plt.figure` already get this background. Pure black is a theme color wherever
-  it appears (text, lines, line markers, and backgrounds). Per-element colors
-  (`scatter(c="black")`, collections) are left alone. Pure white and any other
-  explicit color are kept as is.
-- A figure whose background is pure black is taken as drawn for a dark page: its
-  black is swapped as background and its white as text for both pages, pure-white
-  data colors included. This cannot work at a finer grain, since one figure can
-  hold both a plot on black with white text and a regular plot.
-- Do not branch on the theme in the example: there is only one run. Pick colormaps
-  that read well on both backgrounds, or pair them in `cmaps` (below).
-- Images not drawn by matplotlib (PIL images, screenshots) are shown unchanged in
-  both themes.
+An *integration* is a class that gives the outputs of one display library their two
+looks. Zallery ships four integrations:
 
-These colors and colormaps are the data of a class,
-`zallery.integration.matplotlib.Matplotlib`. A pair is `(light, dark)`; a mapping
-is `{light: dark}`:
-
-| Attribute | Default | Meaning |
+| Output | Integration | Dark look |
 |---|---|---|
-| `background` | `("#fefefe", "#0b0c0f")` | Figure background. |
-| `axes_background` | `("#fdfdfd", "#0b0c0f")` | Axes background. |
-| `foreground` | `("black", "#e2e4e9")` | Text, ticks, spines and default lines. |
-| `palette` | `None` | The default color cycle of each scheme. |
-| `cmaps` | `{"coolwarm": "berlin"}` | Colormaps to switch. |
-| `colors` | `{}` | Other exact colors to switch. |
-| `rcparams` | dpi 160, savefig dpi 200, figsize `(7, 4)` | Other `rcParams` the examples run under. |
+| [Matplotlib figure](matplotlib-figures.md) | `Matplotlib` | The same figure with other colors and colormaps. |
+| [Plotly figure](plotly-figures.md) | `Plotly` | The same figure with the `plotly_dark` template. |
+| [PyVista plot](pyvista-plots.md) | `PyVista` | The same plot with the colors of the dark theme of PyVista. |
+| [xarray object](../examples/_built/outputs/xarray.md) | `Xarray` | The same HTML view with other values for its CSS variables. |
 
-The default colors are close to the page colors of a default Zensical site, so
-that a figure sits on the page. The light backgrounds are a hair off white: pure
-white stays a color of yours, which the swap keeps.
+You can change an integration, or write one for a different library: see
+[Integrations](integrations.md).
 
-To change the look, subclass `Matplotlib` in a module of your project:
+## One run, two looks
 
-```python
-# tools/gallery.py
-from zallery.integration.matplotlib import Matplotlib
+An example does not run again for the dark color scheme. When a cell shows an object,
+Zallery does these steps for the light color scheme, then for the dark color scheme:
 
+1. The integration gives the object the look of the color scheme.
+2. Zallery takes the rendering of the object.
+3. The integration restores each change.
 
-class Figures(Matplotlib):
-    background = ("#f8f9fb", "#090c10")
-    palette = ("Dark2", "Set2")
-    cmaps = {"coolwarm": "berlin", "inferno_r": "inferno"}
-    colors = {"#a8323e": "#ff6b6b"}
-```
+After these steps, the object is as the example made it. The cells that follow get the
+same object.
 
-and name the class in `pyproject.toml`. It takes the place of `Matplotlib`:
+The view of an xarray object is different. It is one HTML output, and CSS variables give
+its colors. The `Xarray` integration thus changes nothing in the kernel. When Zallery
+writes the page, this integration adds the values of the variables for each color
+scheme.
 
-```toml
-[tool.zallery]
-integrations = ["tools.gallery:Figures"]
-```
+The example
+[How a figure gets its dark look](../examples/_built/matplotlib/dark_look.md) does the
+steps by hand for a matplotlib figure.
 
-- `palette` gives each color scheme its own default colors. A palette is the name
-  of a listed matplotlib colormap (`"Set2"`, `"tab10"`) or a list of colors.
-  Examples run with the light palette as matplotlib's color cycle. On the dark
-  page, each color of the light palette is replaced by the color at the same
-  position of the dark palette, so the dark palette needs at least as many colors.
-  With `None` for the light palette, the light page uses matplotlib's default
-  cycle; with `None` for the dark one, both pages show the light one.
-- `cmaps` pairs colormaps by name: a figure drawn with `inferno_r` shows `inferno`
-  on the dark page.
-- `colors` pairs other colors, such as those of a brand.
-- Palette colors and `colors` are also replaced in scatter plots, filled areas and
-  other collections, unlike the theme colors above. Colormapped data keeps its
-  colormap.
-- Only exact colors are replaced. A color derived from one (lightened, or
-  desaturated as seaborn does for bars) stays as drawn. A color you set yourself
-  that equals a palette color is replaced too.
-- `foreground` is matched, not set: its light value must be the color matplotlib
-  draws text and axes with. To change it, set the matching keys in `rcparams` too.
-- `rcparams` in a subclass replaces the default one: the dpi and figure size above
-  are lost. To keep them, write `rcparams = {**Matplotlib.rcparams, "font.size": 9}`.
-- In a project that selects ruff's rule RUF012, ruff flags `cmaps = {...}` and
-  `colors = {...}` as mutable class attributes. Annotate them as
-  `Mapping[str, str]`, as `Matplotlib` does, or ignore the rule for that file.
+## Rules for an example
+
+When you write an example, obey these rules:
+
+- Do not write code that depends on the color scheme. The example runs one time, with
+  the light look.
+- Use the default colors of the library for the parts that must change with the color
+  scheme. An integration changes only the colors that it knows, such as these defaults.
+- For the colors that you set, use colors that are clear on a light and on a dark
+  background. An integration does not change these colors, unless one is equal to a
+  color that it knows.
+
+The page of each library gives the colors that its integration changes.
+
+## Outputs without an integration
+
+Zallery takes one rendering of an output that no integration knows:
+
+- An image, such as a PIL image or a screenshot, is the same on the light page and on
+  the dark page.
+- An HTML output, such as a pandas table, goes on the page as it is. The stylesheet of
+  the site gives the output its colors in the two color schemes.
+
+To give such an output two looks, write an integration for its class: see
+[Integrations](integrations.md).
+
+## If the dark look fails
+
+If an integration cannot make the dark look of an output, the output is not lost. The
+page shows the light look in the two color schemes, and the error shows under the cell.
+
+## Change a look
+
+The colors of an integration are attributes of its class. A project changes them with a
+subclass, which it names in `pyproject.toml`. The page of each library gives the
+attributes. [Integrations](integrations.md) gives the procedure.

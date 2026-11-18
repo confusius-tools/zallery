@@ -5,7 +5,8 @@ Zallery writes Markdown pages; the Zensical site provides the rest, in
 
 - Markdown extensions `attr_list`, `md_in_html`, `admonition`, `pymdownx.details`
   and `pymdownx.superfences`.
-- `nav` entries for the index page and the built pages.
+- `nav` entries for the index page and the built pages. The
+  [page of a section](writing-examples.md#section-pages) is optional there.
 - Two CSS rules so each image shows in its own color scheme:
 
   ```css
