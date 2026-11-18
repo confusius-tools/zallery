@@ -23,7 +23,7 @@ class Figures(Matplotlib):
     dark.
     """
 
-    background = ("#f8f9fb", "#090c10")
+    background = ("#f8f9fb00", "#090c1000")
     axes_background = ("#fefefe", "#111720")
     foreground = ("black", "#e6edf3")
     palette = ("Dark2", "Set2")
