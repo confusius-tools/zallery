@@ -12,15 +12,9 @@ concurrency:
   group: publish-${{ github.ref }}
   cancel-in-progress: false
 
+# No lint or test job: a tag goes on a commit of main whose CI has passed.
 jobs:
-  lint:
-    uses: ./.github/workflows/lint.yml
-
-  tests:
-    uses: ./.github/workflows/test.yml
-
   build:
-    needs: [lint, tests]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout tagged commit

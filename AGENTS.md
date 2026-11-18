@@ -240,8 +240,9 @@ classes when it loads the configuration.
 - PyPI Trusted Publisher (a pending publisher for the first release): project
   `zallery`, owner `confusius-tools`, repository `zallery`, workflow `publish.yml`,
   environment `pypi`. No API token is needed.
-- To release: set `project.version`, run `uv lock`, commit and push, then push a
-  matching `vVERSION` tag. `publish.yml` runs lint and tests, checks that the tag
-  matches the version, builds, and publishes.
+- To release: set `project.version`, run `uv lock`, commit and push, wait for the
+  CI of that commit to pass, then push a matching `vVERSION` tag. `publish.yml`
+  runs no lint and no tests: it checks that the tag matches the version, builds,
+  and publishes.
 - Publishing is permanent. Use a new version for every release.
 - Keep publishing instructions out of the README.
