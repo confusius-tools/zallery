@@ -10,6 +10,15 @@ from pathlib import Path
 ANSI_ESCAPE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 """ANSI control sequences (colors, cursor moves) in terminal-oriented output."""
 
+API_TEMPLATES = "mkdocstrings"
+"""Folder of the cache that gets the mkdocstrings templates Zallery ships, unless
+the project names another one.
+
+A site names the folder as the `custom_templates` of mkdocstrings. Its backlinks
+template keeps, under an API object, the examples that use it (see
+`zallery.references`).
+"""
+
 SCENE_MIME = "application/vnd.zallery.vtksz"
 """Mime type the kernel gives a pyvista scene exported for the browser.
 

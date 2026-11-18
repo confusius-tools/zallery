@@ -16,6 +16,7 @@ are optional. See default configuration in [`config.toml`](#default-configuratio
 | `html_thumbnails` | Whether an HTML output may be an example's thumbnail: see [HTML thumbnails](html-thumbnails.md). |
 | `html_thumbnail_css` | Stylesheets of the site applied to HTML thumbnails. |
 | `api_references` | Whether an example page lists the objects of the project's package that the example uses, as links to their API documentation: see [API references](api-references.md). |
+| `api_templates` | Folder Zallery writes its mkdocstrings templates to, with `api_references`. If not set, the `mkdocstrings` folder of the cache. |
 
 
 ## Default configuration

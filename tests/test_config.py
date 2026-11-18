@@ -46,7 +46,7 @@ def test_load_config_defaults(tmp_path: Path) -> None:
 
     assert config.examples == tmp_path.resolve() / "docs" / "examples"
     assert config.built == config.examples / "_built"
-    assert config.cache == tmp_path.resolve() / ".gallery-cache"
+    assert config.cache == tmp_path.resolve() / ".zallery-cache"
     assert config.binder_repo is None
     assert config.fingerprint_files == (tmp_path.resolve() / "uv.lock",)
     assert config.html_thumbnails is False
@@ -65,7 +65,7 @@ def test_the_shipped_table_is_the_configuration_of_an_empty_table(
     empty = load_config(tmp_path / "empty")
     copied = load_config(tmp_path / "copied")
 
-    for field in ("examples", "built", "cache", "fingerprint_files"):
+    for field in ("examples", "built", "cache", "fingerprint_files", "api_templates"):
         relative = getattr(empty, field)
         assert relative != empty.root
         assert _under(getattr(copied, field), copied.root) == _under(
@@ -336,3 +336,30 @@ def test_deps_fingerprint_tracks_api_references(tmp_path: Path) -> None:
     _write_project(tmp_path, "api_references = true", project)
 
     assert deps_fingerprint(load_config(tmp_path)) != off
+
+
+def test_load_config_puts_the_api_templates_in_the_cache_by_default(
+    tmp_path: Path,
+) -> None:
+    _write_project(tmp_path, 'cache = "build/cache"')
+
+    config = load_config(tmp_path)
+
+    assert config.api_templates == tmp_path.resolve() / "build/cache/mkdocstrings"
+
+
+def test_load_config_resolves_api_templates_under_the_project_root(
+    tmp_path: Path,
+) -> None:
+    _write_project(tmp_path, 'api_templates = "tools/mkdocstrings"')
+
+    config = load_config(tmp_path)
+
+    assert config.api_templates == tmp_path.resolve() / "tools" / "mkdocstrings"
+
+
+def test_load_config_rejects_api_templates_that_is_not_a_path(tmp_path: Path) -> None:
+    _write_project(tmp_path, "api_templates = true")
+
+    with pytest.raises(ConfigError, match="api_templates.*path"):
+        load_config(tmp_path)

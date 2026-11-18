@@ -118,11 +118,11 @@ permalink = true
 [project.markdown_extensions.pymdownx.snippets]
 
 # The API reference is written from the docstrings. With `backlinks`, each object
-# lists the pages that reference it. The template in `tools/mkdocstrings` keeps
-# the examples that use it, which reference it since `api_references` is on in
-# `[tool.zallery]` of `pyproject.toml`.
+# lists the pages that reference it. The template Zallery writes to its cache
+# keeps the examples that use it, which reference it since `api_references` is
+# on in `[tool.zallery]` of `pyproject.toml`.
 [project.plugins.mkdocstrings]
-custom_templates = "tools/mkdocstrings"
+custom_templates = ".zallery-cache/mkdocstrings"
 
 [project.plugins.mkdocstrings.handlers.python]
 paths = ["src"]

@@ -26,6 +26,8 @@ Keys (all optional: the value of a key the project leaves out is in the
 - `api_references`: whether an example page lists the objects of the project's
   package that the example uses, as cross-references to their API
   documentation. The package is the `name` of `[project]`, as it is imported.
+- `api_templates`: folder Zallery writes its mkdocstrings templates to, with
+  `api_references`. If not set, the `mkdocstrings` folder of the cache.
 """
 
 from __future__ import annotations
@@ -40,6 +42,7 @@ from pathlib import Path
 from typing import Any
 
 import zallery
+from zallery._types import API_TEMPLATES
 from zallery.integration import STOCK, Integration, load, name, resolve
 
 _TABLE = "zallery"
@@ -54,7 +57,7 @@ follows `examples`, the second stays unset."""
 
 _KNOWN_KEYS = frozenset(
     {"examples", "built", "cache", "binder_repo", "integrations", "fingerprint"}
-    | {"html_thumbnails", "html_thumbnail_css", "api_references"}
+    | {"html_thumbnails", "html_thumbnail_css", "api_references", "api_templates"}
 )
 """Keys the table may contain; anything else is a typo and rejected."""
 
@@ -95,6 +98,10 @@ class Config:
     api_package : str, optional
         Import name of the package whose objects each example page lists. If
         not provided, no page lists any.
+    api_templates : pathlib.Path, optional
+        Folder the mkdocstrings templates Zallery ships are written to, when
+        `api_package` is set. If not provided, the `mkdocstrings` folder of
+        the cache.
     """
 
     root: Path
@@ -107,6 +114,7 @@ class Config:
     html_thumbnails: bool = False
     html_thumbnail_css: tuple[Path, ...] = ()
     api_package: str | None = None
+    api_templates: Path | None = None
 
 
 def find_pyproject(start: Path) -> Path | None:
@@ -241,17 +249,26 @@ def load_config(start: Path) -> Config:
             )
         # A distribution `my-pkg` is imported as `my_pkg`.
         api_package = re.sub(r"[-_.]+", "_", project_name).lower()
+    cache = root / table["cache"]
+    api_templates = table.get("api_templates")
+    if api_templates is not None and not isinstance(api_templates, str):
+        raise ConfigError(
+            "api_templates in [tool.zallery] must be the path of a folder, as a string."
+        )
     return Config(
         root=root,
         examples=examples,
         built=root / table["built"] if "built" in table else examples / "_built",
-        cache=root / table["cache"],
+        cache=cache,
         binder_repo=table.get("binder_repo"),
         integrations=_integrations(table["integrations"], root),
         fingerprint_files=tuple(root / p for p in table["fingerprint"]),
         html_thumbnails=html_thumbnails,
         html_thumbnail_css=html_thumbnail_css,
         api_package=api_package,
+        api_templates=(
+            cache / API_TEMPLATES if api_templates is None else root / api_templates
+        ),
     )
 
 

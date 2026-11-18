@@ -18,7 +18,7 @@ from rich.progress import (
 )
 
 from zallery import cache, discover, execute, index, render
-from zallery._types import ExampleSpec, HtmlThumbnail, RenderedExample
+from zallery._types import API_TEMPLATES, ExampleSpec, HtmlThumbnail, RenderedExample
 from zallery.integration import STOCK, Integration, load, name
 
 
@@ -53,6 +53,22 @@ def _extract_title_and_summary(
             else:
                 return title, " ".join(summary_lines)
     return title, " ".join(summary_lines)
+
+
+def _write_api_templates(folder: Path) -> None:
+    """Copy the mkdocstrings templates Zallery ships into a folder.
+
+    Written on every build, so that the templates are those of the installed
+    Zallery: they read what `zallery.render` writes. Other files of the folder are
+    left as they are.
+
+    Parameters
+    ----------
+    folder : pathlib.Path
+        The folder a site names as the `custom_templates` of mkdocstrings.
+    """
+    shipped = Path(__file__).with_name("templates")
+    shutil.copytree(shipped, folder, dirs_exist_ok=True)
 
 
 def _copy_dir_contents(src: Path, dst: Path) -> None:
@@ -374,6 +390,7 @@ def build_gallery(
     html_thumbnail: HtmlThumbnail | None = None,
     abort_on_error: bool = False,
     api_package: str | None = None,
+    api_templates: Path | None = None,
 ) -> None:
     """Run the full pipeline and write the gallery to disk.
 
@@ -423,7 +440,13 @@ def build_gallery(
     api_package : str, optional
         Import name of the package whose objects each example page lists at
         its end, as cross-references to their API documentation (see
-        `zallery.references`). If not provided, no page lists any.
+        `zallery.references`). The mkdocstrings templates Zallery ships are
+        then written to `api_templates`. If not provided, no page lists any
+        and no template is written.
+    api_templates : pathlib.Path, optional
+        Folder the mkdocstrings templates are written to, when `api_package`
+        is given: the one a site names as the `custom_templates` of
+        mkdocstrings. If not provided, the `mkdocstrings` folder of the cache.
 
     Raises
     ------
@@ -443,6 +466,10 @@ def build_gallery(
             listing = "\n".join(f"  {path}" for path in sorted(missing))
             raise ValueError(f"Not discoverable as example scripts:\n{listing}")
     cache_root.mkdir(parents=True, exist_ok=True)
+    if api_package is not None:
+        _write_api_templates(
+            cache_root / API_TEMPLATES if api_templates is None else api_templates
+        )
 
     rendered: list[RenderedExample] = []
     interactive = _is_interactive()

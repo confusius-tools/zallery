@@ -57,7 +57,7 @@ def test_cli_builds_the_gallery_of_the_enclosing_project(tmp_path: Path) -> None
     assert "# Hello ┏" in markdown
     assert '<div class="gallery-output" markdown>' in markdown
     assert (examples / "index.md").is_file()
-    assert (project / ".gallery-cache").is_dir()
+    assert (project / ".zallery-cache").is_dir()
 
 
 @pytest.mark.slow
@@ -187,7 +187,7 @@ def test_cli_no_run_renders_every_example_without_executing(tmp_path: Path) -> N
     assert "print('hi')" in markdown
     assert "gallery-output" not in markdown
     assert "[not run]" in proc.stdout
-    assert not list((project / ".gallery-cache").glob("**/hello"))
+    assert not list((project / ".zallery-cache").glob("**/hello"))
 
 
 def test_cli_no_run_rejects_example_paths(tmp_path: Path) -> None:
@@ -243,6 +243,48 @@ def test_cli_lists_the_api_objects_an_example_uses(tmp_path: Path) -> None:
     assert "## API used in this example { #gallery-api }" in markdown
     assert '<autoref identifier="refs_cli_pkg.add" optional' in markdown
     assert "<code>add</code></autoref>" in markdown
+
+
+_TEMPLATE = Path("python", "material", "backlinks.html.jinja")
+
+
+def _api_project(tmp_path: Path, table: str = "") -> Path:
+    """Return a project with `api_references` on."""
+    project, _ = _make_project(tmp_path)
+    (project / "pyproject.toml").write_text(
+        '[project]\nname = "demo"\n\n'
+        f'[tool.zallery]\nexamples = "docs/examples"\napi_references = true\n{table}'
+    )
+    return project
+
+
+def test_cli_writes_the_backlinks_template_to_the_cache(tmp_path: Path) -> None:
+    project = _api_project(tmp_path)
+
+    proc = _run(project, "--no-run")
+
+    assert proc.returncode == 0, f"stderr: {proc.stderr}\nstdout: {proc.stdout}"
+    template = project / ".zallery-cache" / "mkdocstrings" / _TEMPLATE
+    assert "gallery-api" in template.read_text(encoding="utf-8")
+    # What a site does with the template is said in the docs, not at each build.
+    assert proc.stderr == ""
+
+
+def test_cli_writes_the_backlinks_template_to_the_folder_the_project_names(
+    tmp_path: Path,
+) -> None:
+    project = _api_project(tmp_path, 'api_templates = "tools/mkdocstrings"\n')
+    own = project / "tools" / "mkdocstrings" / "python" / "material"
+    own.mkdir(parents=True)
+    (own / "class.html.jinja").write_text("a template of the project")
+
+    proc = _run(project, "--no-run")
+
+    assert proc.returncode == 0, f"stderr: {proc.stderr}\nstdout: {proc.stdout}"
+    written = own / "backlinks.html.jinja"
+    assert "gallery-api" in written.read_text(encoding="utf-8")
+    assert (own / "class.html.jinja").read_text() == "a template of the project"
+    assert not (project / ".zallery-cache" / "mkdocstrings").exists()
 
 
 def test_cli_returns_1_when_examples_dir_missing(tmp_path: Path) -> None:

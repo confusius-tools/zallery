@@ -59,21 +59,33 @@ The heading of the section has the id `gallery-api`, and the list has the class
 ## Only the examples
 
 mkdocstrings lists every reference to an object: those of the user guide and of
-other docstrings too. To list only the examples, give mkdocstrings a template of
-your own for the backlinks:
+other docstrings too. To list only the examples, Zallery ships a template for the
+backlinks. With `api_references` on, each build of the gallery writes it to the
+`mkdocstrings` folder of the cache. Name that folder in `zensical.toml`:
 
 ```toml
 [project.plugins.mkdocstrings]
-custom_templates = "tools/mkdocstrings"
+custom_templates = ".zallery-cache/mkdocstrings"
 ```
 
-The template is the file `python/material/backlinks.html.jinja` in that directory.
-The
-[template of this repository](https://github.com/confusius-tools/zallery/blob/main/tools/mkdocstrings/python/material/backlinks.html.jinja)
-is a working setup:
-
-- It keeps the references whose anchor is `gallery-api`, the id of the heading
-  that Zallery writes, and leaves out every other one.
+- The template keeps the references whose anchor is `gallery-api`, the id of the
+  heading that Zallery writes, and leaves out every other one.
 - It shows each as the title of its example, under "Used in the examples". The
   link opens the example at its top.
 - An object that no example uses shows nothing.
+- Build the gallery before the site, so that the folder is there.
+- With another `cache` (see [Configuration](configuration.md)), the folder is
+  `<cache>/mkdocstrings`.
+
+mkdocstrings reads one templates folder. A site that already has its own names
+it to Zallery, which then writes its template there and not in the cache:
+
+```toml
+[tool.zallery]
+api_references = true
+api_templates = "tools/mkdocstrings"
+```
+
+- Zallery writes the file `python/material/backlinks.html.jinja` in that folder on
+  every build, and leaves the other files as they are.
+- The file is Zallery's: a change made to it by hand is lost at the next build.

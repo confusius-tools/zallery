@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import shutil
 from functools import partial
+from importlib.resources import files
 from pathlib import Path
 
 import pytest
@@ -326,3 +327,44 @@ def test_build_gallery_runs_a_cached_example_that_raised_again_to_abort(
 
     with pytest.raises(ExampleError, match="ValueError: boom in the example"):
         build(abort_on_error=True)
+
+
+def test_build_gallery_writes_the_backlinks_template_with_an_api_package(
+    gallery_paths: GalleryPaths,
+) -> None:
+    examples_root, built_dir, cache_root = gallery_paths
+    _seed_example(examples_root, "io", "hello", _FINE)
+    build = partial(
+        build_gallery,
+        examples_root=examples_root,
+        built_dir=built_dir,
+        cache_root=cache_root,
+        deps_fingerprint="testdeps==1.0",
+        only=[],
+    )
+    written = (
+        cache_root / "mkdocstrings" / "python" / "material" / "backlinks.html.jinja"
+    )
+
+    build()
+    assert not written.exists()
+
+    build(api_package="pkg")
+    shipped = files("zallery").joinpath(
+        "templates", "python", "material", "backlinks.html.jinja"
+    )
+    assert written.read_text(encoding="utf-8") == shipped.read_text(encoding="utf-8")
+
+    # A project may name the folder, which keeps what it holds.
+    own = cache_root.parent / "templates"
+    (own / "python" / "material").mkdir(parents=True)
+    (own / "python" / "material" / "class.html.jinja").write_text("the project's")
+    shutil.rmtree(cache_root / "mkdocstrings")
+
+    build(api_package="pkg", api_templates=own)
+    moved = own / "python" / "material" / "backlinks.html.jinja"
+    assert moved.read_text(encoding="utf-8") == shipped.read_text(encoding="utf-8")
+    assert (own / "python" / "material" / "class.html.jinja").read_text() == (
+        "the project's"
+    )
+    assert not (cache_root / "mkdocstrings").exists()

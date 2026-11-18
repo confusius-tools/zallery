@@ -11,7 +11,7 @@ examples = "docs/examples"
 # built = "docs/examples/_built"
 
 # Execution/render cache.
-cache = ".gallery-cache"
+cache = ".zallery-cache"
 
 # `owner/repo` for the Binder launch badges. Not set: no Binder badge.
 # binder_repo = "owner/repo"
@@ -50,5 +50,13 @@ html_thumbnail_css = []
 # project that the example uses, as cross-references to their API documentation.
 # The package is the `name` of `[project]`, as it is imported. The site needs
 # mkdocstrings, which resolves the cross-references; with its `backlinks` option,
-# the documentation of an object then lists the examples that use it.
+# the documentation of an object then lists the pages that reference it. To list
+# only the examples, name the folder of `api_templates` as the
+# `custom_templates` of mkdocstrings.
 api_references = false
+
+# Folder Zallery writes its mkdocstrings templates to on every build, with
+# `api_references` on. mkdocstrings reads one templates folder: a site that has
+# its own names it here, and Zallery adds its files to it. Not set: the
+# `mkdocstrings` folder of the cache.
+# api_templates = ".zallery-cache/mkdocstrings"

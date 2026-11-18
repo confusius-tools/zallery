@@ -5,6 +5,9 @@ references that Zallery writes at the end of an example page, under the heading
 with the id `gallery-api` (see `api_references` in `[tool.zallery]`), and shows
 each as the title of its example.
 
+Zallery writes this file to the `mkdocstrings` folder of its cache on every build;
+a site names that folder as the `custom_templates` of mkdocstrings.
+
 Context:
   backlinks (Mapping[str, Iterable[Backlink]]): The backlinks to render.
   config (dict): The configuration options.

@@ -84,6 +84,7 @@ src/zallery/
 │   ├── pyvista.py    # PyVista: gallery mode, theme color swap, scenes
 │   └── xarray.py     # Xarray: CSS variables of each scheme
 ├── references.py # the API objects a cell uses, reported from the kernel
+├── templates/   # mkdocstrings templates, copied to the cache for the site
 ├── render.py    # executed notebook to Markdown page and images
 ├── thumbnail.py # HTML output to thumbnail PNGs, with a headless browser
 └── index.py     # card index page
@@ -204,10 +205,16 @@ classes when it loads the configuration.
     that is the id of a heading of the page: hence the heading with the fixed
     id `gallery-api`. An empty anchor, or the id of another element, records
     none.
-  - This site shows only the examples among the backlinks: the template
-    `tools/mkdocstrings/python/material/backlinks.html.jinja` keeps the ones
-    whose anchor is `gallery-api`. That id is a contract between `render.py`
-    and the template.
+  - To show only the examples among the backlinks, Zallery ships a
+    mkdocstrings template, `templates/python/material/backlinks.html.jinja`,
+    which keeps the ones whose anchor is `gallery-api`: that id is a contract
+    between `render.py` and the template. `build_gallery` copies `templates/`
+    on every build to the folder of `api_templates`, by default the
+    `mkdocstrings` folder of the cache, and a site names that folder as
+    `custom_templates`. A package cannot override a template by an entry
+    point: mkdocstrings looks in `custom_templates`, then in its own
+    templates, and only then in those other packages register. Zallery does
+    not read `zensical.toml`: what the site has to set is said in the docs.
   - An object is named by the module and class that define it (`__module__`,
     `__qualname__`): mkdocstrings registers that path as an alias of the public
     one. A property is named from its class with `inspect.getattr_static` and
