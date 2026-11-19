@@ -401,6 +401,11 @@ def test_build_gallery_writes_the_backlinks_template_with_an_api_package(
     )
     assert written.read_text(encoding="utf-8") == shipped.read_text(encoding="utf-8")
 
+    # Next to it, the card of each example, for that template to draw.
+    cards = written.with_name("gallery_cards.html.jinja").read_text(encoding="utf-8")
+    assert '"io/hello"' in cards
+    assert "default_thumb.svg" in cards
+
     # A project may name the folder, which keeps what it holds.
     own = cache_root.parent / "templates"
     (own / "python" / "material").mkdir(parents=True)
@@ -414,3 +419,6 @@ def test_build_gallery_writes_the_backlinks_template_with_an_api_package(
         "the project's"
     )
     assert not (cache_root / "mkdocstrings").exists()
+    assert '"io/hello"' in moved.with_name("gallery_cards.html.jinja").read_text(
+        encoding="utf-8"
+    )

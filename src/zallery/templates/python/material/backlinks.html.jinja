@@ -1,17 +1,22 @@
-{#- Backlinks of an API object: only the examples that use it.
+{#- Backlinks of an API object: only the examples that use it, as cards.
 
 mkdocstrings lists every page that references an object. This template keeps the
 references that Zallery writes at the end of an example page, under the heading
 with the id `gallery-api` (see `api_references` in `[tool.zallery]`), and shows
-each as the title of its example.
+each as the card the gallery index has for its example: the thumbnail of each
+color scheme, then the title.
 
-Zallery writes this file to the `mkdocstrings` folder of its cache on every build;
-a site names that folder as the `custom_templates` of mkdocstrings.
+mkdocstrings gives the title and the address of an example. The pictures come
+from `gallery_cards.html.jinja`, next to this file.
+
+Zallery writes both files to the `mkdocstrings` folder of its cache on every
+build; a site names that folder as the `custom_templates` of mkdocstrings.
 
 Context:
   backlinks (Mapping[str, Iterable[Backlink]]): The backlinks to render.
   config (dict): The configuration options.
 -#}
+{% import "gallery_cards.html.jinja" as gallery %}
 {% if config.backlinks %}
   {% set ns = namespace(examples=[]) %}
   {% for backlink_type, backlink_list in backlinks | dictsort %}
@@ -26,12 +31,29 @@ Context:
   {% endfor %}
   {% if ns.examples %}
     <div class="doc doc-backlinks">
-      <b class="doc doc-backlink-type">Used in the examples:</b>
-      <ul class="doc doc-backlink-list">
-        {% for crumb in ns.examples | sort(attribute="title") %}
-          <li class="doc doc-backlink"><a href="{{ crumb.url }}">{{ crumb.title | safe }}</a></li>
-        {% endfor %}
-      </ul>
+      <b class="doc doc-backlink-type">Examples using:</b>
+      {#- The markup of the cards of the gallery index, for the same styles, and
+      a class of its own for a site that sizes these cards on their own. -#}
+      <div class="grid cards examples-cards gallery-api-cards">
+        <ul>
+          {% for crumb in ns.examples | sort(attribute="title") %}
+            {#- The address of the page of the example, from this page:
+            `<folder>/<name>/` or `<folder>/<name>.html`. The pictures are linked
+            from the folder. -#}
+            {% set parts = crumb.url.split("#")[0].rstrip("/").split("/") %}
+            {% set name = parts[-1][:-5] if parts[-1].endswith(".html") else parts[-1] %}
+            {% set folder = (parts[:-1] | join("/")) ~ "/" if parts | length > 1 else "" %}
+            {% set card = gallery.cards.get((parts[-2] if parts | length > 1 else "") ~ "/" ~ name) %}
+            <li>
+              {% if card %}
+                <p><a href="{{ crumb.url }}"><img class="skip-lightbox" src="{{ folder }}{{ card.light }}#only-light" alt="{{ card.alt }}"><img class="skip-lightbox" src="{{ folder }}{{ card.dark }}#only-dark" alt="{{ card.alt }}"></a></p>
+                <hr>
+              {% endif %}
+              <p><strong><a href="{{ crumb.url }}">{{ crumb.title | safe }}</a></strong></p>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
     </div>
   {% endif %}
 {% endif %}

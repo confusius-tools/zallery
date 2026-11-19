@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
+import jinja2
+
 from zallery._types import ExampleSpec, RenderedExample
-from zallery.index import build_index, build_section_pages
+from zallery.index import build_api_cards, build_index, build_section_pages
 
 
 def _spec(source: Path, section: str) -> ExampleSpec:
@@ -340,3 +343,59 @@ def test_build_index_leaves_out_the_front_matter_of_a_section(tmp_path: Path) ->
     assert "## Input\n\nReading files." in index_md
     assert "icon" not in index_md
     assert "---\n\n##" not in index_md
+
+
+def _cards(text: str) -> dict[str, dict[str, str]]:
+    """Return the cards a Jinja template reads from the text Zallery writes."""
+    template = jinja2.Environment(autoescape=True).from_string(
+        text + "{{ cards | tojson }}"
+    )
+    return json.loads(template.render())
+
+
+def test_build_api_cards_gives_the_pictures_of_each_example(tmp_path: Path) -> None:
+    folder = tmp_path / "_built" / "io"
+    own = RenderedExample(
+        spec=_spec(tmp_path / "io" / "load.py", "io"),
+        title="Load a file",
+        summary="",
+        md_path=folder / "load.md",
+        thumbnail_light=folder / "load_thumb_light.png",
+        thumbnail_dark=folder / "load_thumb_dark.png",
+    )
+    rendered = [own, _example(tmp_path, "io", "save", "Save a file")]
+
+    text = build_api_cards(rendered, root=tmp_path)
+
+    # A Jinja template that defines `cards`, for the backlinks template to import.
+    cards = _cards(text)
+    assert cards == {
+        "io/load": {
+            "light": "load_thumb_light.png",
+            "dark": "load_thumb_dark.png",
+            "alt": "Load a file",
+        },
+        "io/save": {
+            "light": "../../_assets/default_thumb.svg",
+            "dark": "../../_assets/default_thumb_dark.svg",
+            "alt": "Example thumbnail",
+        },
+    }
+
+
+def test_build_api_cards_keeps_a_title_that_looks_like_jinja(tmp_path: Path) -> None:
+    title = 'Sets {{ x }} and {% y %} "quoted" {# z #} \\ café 🎨'
+    folder = tmp_path / "_built" / "io"
+    example = RenderedExample(
+        spec=_spec(tmp_path / "io" / "load.py", "io"),
+        title=title,
+        summary="",
+        md_path=folder / "load.md",
+        thumbnail_light=folder / "load_thumb_light.png",
+        thumbnail_dark=folder / "load_thumb_dark.png",
+    )
+
+    text = build_api_cards([example], root=tmp_path)
+
+    cards = _cards(text)
+    assert cards["io/load"]["alt"] == title

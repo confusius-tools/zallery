@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import html as html_lib
+import json
 import os
 import re
 from collections import defaultdict
@@ -27,6 +28,12 @@ _DEFAULT_HEADER = (
     "page with code, outputs, and downloadable source files.\n"
 )
 """Index page header used when the gallery root has no `_index.md`."""
+
+API_CARDS = "python/material/gallery_cards.html.jinja"
+"""Path of the cards of the examples, in the folder of the mkdocstrings templates.
+
+Next to the backlinks template Zallery ships, which imports it by its file name.
+"""
 
 SECTION_PAGE = "index.md"
 """File name of the page of a section, next to the pages of its examples."""
@@ -110,14 +117,52 @@ def _link(target: Path, page_dir: Path) -> str:
     return Path(os.path.relpath(target, page_dir)).as_posix()
 
 
-def _card_image_markdown(
-    rex: RenderedExample, *, root: Path, page_dir: Path, href: str
-) -> str:
-    """Return theme-aware thumbnail markup for one example card.
+def _thumbnails(rex: RenderedExample, *, root: Path) -> tuple[Path, Path, str]:
+    """Return the two pictures of the card of an example.
 
     An example that raised shows the error thumbnails, whatever its own: the card
     must show the fault. Without error thumbnails in the gallery root, it is
     treated as any other example.
+
+    Parameters
+    ----------
+    rex : RenderedExample
+        The example of the card.
+    root : pathlib.Path
+        Gallery root, which holds the default and the error thumbnails.
+
+    Returns
+    -------
+    light : pathlib.Path
+        The picture for the light color scheme.
+    dark : pathlib.Path
+        The picture for the dark color scheme.
+    alt : str
+        The text that stands for the pictures.
+    """
+    if (
+        rex.failed
+        and (root / _ERROR_THUMB_LIGHT).is_file()
+        and (root / _ERROR_THUMB_DARK).is_file()
+    ):
+        return (
+            root / _ERROR_THUMB_LIGHT,
+            root / _ERROR_THUMB_DARK,
+            "Example that raised an error",
+        )
+    if rex.thumbnail_light is None or rex.thumbnail_dark is None:
+        return (
+            root / _DEFAULT_THUMB_LIGHT,
+            root / _DEFAULT_THUMB_DARK,
+            "Example thumbnail",
+        )
+    return rex.thumbnail_light, rex.thumbnail_dark, rex.title
+
+
+def _card_image_markdown(
+    rex: RenderedExample, *, root: Path, page_dir: Path, href: str
+) -> str:
+    """Return theme-aware thumbnail markup for one example card.
 
     Parameters
     ----------
@@ -135,19 +180,8 @@ def _card_image_markdown(
     str
         The two pictures, one for each color scheme, as a link to the example.
     """
-    if (
-        rex.failed
-        and (root / _ERROR_THUMB_LIGHT).is_file()
-        and (root / _ERROR_THUMB_DARK).is_file()
-    ):
-        light, dark = root / _ERROR_THUMB_LIGHT, root / _ERROR_THUMB_DARK
-        alt = "Example that raised an error"
-    elif rex.thumbnail_light is None or rex.thumbnail_dark is None:
-        light, dark = root / _DEFAULT_THUMB_LIGHT, root / _DEFAULT_THUMB_DARK
-        alt = "Example thumbnail"
-    else:
-        light, dark = rex.thumbnail_light, rex.thumbnail_dark
-        alt = html_lib.escape(rex.title, quote=True)
+    light, dark, alt = _thumbnails(rex, root=root)
+    alt = html_lib.escape(alt, quote=True)
     return (
         f'[<img class="skip-lightbox" src="{_link(light, page_dir)}#only-light" '
         f'alt="{alt}"><img class="skip-lightbox" '
@@ -273,6 +307,71 @@ def build_section_pages(
             + _cards(items, root=root, page_dir=page_dir)
         )
     return pages
+
+
+def _jinja_string(text: str) -> str:
+    """Return a text as a string literal of a Jinja template.
+
+    Parameters
+    ----------
+    text : str
+        Any text, such as the title of an example.
+
+    Returns
+    -------
+    str
+        The literal, in double quotes. It holds none of the characters that open
+        or close a Jinja tag: they are written as escapes, which Jinja reads.
+    """
+    # A JSON string is a Jinja string: both read the same escapes.
+    literal = json.dumps(text, ensure_ascii=False)
+    for character in "{}%#":
+        literal = literal.replace(character, f"\\u{ord(character):04x}")
+    return literal
+
+
+def build_api_cards(rendered: list[RenderedExample], *, root: Path) -> str:
+    """Return the cards of the examples, as a template the backlinks one imports.
+
+    The backlinks template Zallery ships shows, under an API object, a card for
+    each example that uses it. mkdocstrings gives that template the title and the
+    address of an example, not its pictures: they come from this text, which
+    Zallery writes next to the template on every build (see `API_CARDS`).
+
+    Parameters
+    ----------
+    rendered : list[RenderedExample]
+        The rendered examples.
+    root : pathlib.Path
+        Gallery root, which holds the default and the error thumbnails.
+
+    Returns
+    -------
+    str
+        A Jinja template that sets `cards`: for each example, by the name of its
+        built folder and of its page (`io/load`), the pictures the gallery index
+        shows for it, as links from that folder, and the text that stands for
+        them.
+    """
+    entries = []
+    for rex in rendered:
+        folder = rex.md_path.parent
+        light, dark, alt = _thumbnails(rex, root=root)
+        fields = {
+            "light": _link(light, folder),
+            "dark": _link(dark, folder),
+            "alt": alt,
+        }
+        card = ", ".join(
+            f"{_jinja_string(key)}: {_jinja_string(value)}"
+            for key, value in fields.items()
+        )
+        key = _jinja_string(f"{folder.name}/{rex.md_path.stem}")
+        entries.append(f"  {key}: {{{card}}},\n")
+    return (
+        "{#- The card of each example. Zallery writes this file on every build. -#}\n"
+        "{% set cards = {\n" + "".join(entries) + "} %}\n"
+    )
 
 
 def build_index(rendered: list[RenderedExample], *, root: Path) -> str:

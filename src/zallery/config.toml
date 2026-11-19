@@ -51,9 +51,9 @@ html_thumbnail_css = []
 # project that the example uses, as cross-references to their API documentation.
 # The package is the `name` of `[project]`, as it is imported. The site needs
 # mkdocstrings, which resolves the cross-references; with its `backlinks` option,
-# the documentation of an object then lists the pages that reference it. To list
-# only the examples, name the folder of `api_templates` as the
-# `custom_templates` of mkdocstrings.
+# the documentation of an object then lists the pages that reference it. To show
+# only the examples, each as its card of the gallery index, name the folder of
+# `api_templates` as the `custom_templates` of mkdocstrings.
 api_references = false
 
 # Folder Zallery writes its mkdocstrings templates to on every build, with

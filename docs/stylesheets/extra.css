@@ -54,6 +54,21 @@
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 10rem), 1fr));
 }
 
+/* The cards of the examples that use an API object, under its documentation:
+   smaller than those of the gallery index. */
+.grid.cards.examples-cards.gallery-api-cards {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 7.5rem), 1fr));
+  font-size: 0.65rem;
+}
+
+.grid.cards.examples-cards.gallery-api-cards > ul > li {
+  padding: 0.5rem;
+}
+
+.grid.cards.examples-cards.gallery-api-cards > ul > li > hr {
+  margin: 0.5em 0;
+}
+
 .grid.cards.examples-cards img {
   aspect-ratio: 4 / 3;
   object-fit: cover;

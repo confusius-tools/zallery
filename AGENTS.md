@@ -211,8 +211,17 @@ classes when it loads the configuration.
     between `render.py` and the template. `build_gallery` copies `templates/`
     on every build to the folder of `api_templates`, by default the
     `mkdocstrings` folder of the cache, and a site names that folder as
-    `custom_templates`. A package cannot override a template by an entry
-    point: mkdocstrings looks in `custom_templates`, then in its own
+    `custom_templates`. The template draws a card for each example, with the
+    pictures of the gallery index. mkdocstrings gives it the title and the
+    address of an example only, so `build_gallery` also writes the pictures
+    there, as a Jinja file the template imports (`index.API_CARDS`): a
+    template can load another template, not read a data file. The key of a
+    card is the built folder and the name of the page, which the template
+    reads from the address. Zensical keeps a rendered API page in its cache
+    while its sources are unchanged, and mkdocstrings loads a template once in
+    a process: a site names the folder in `watch` too, so that new cards
+    show, also in a running `zensical serve`. A package cannot override a
+    template by an entry point: mkdocstrings looks in `custom_templates`, then in its own
     templates, and only then in those other packages register. Zallery does
     not read `zensical.toml`: what the site has to set is said in the docs.
   - An object is named by the module and class that define it (`__module__`,

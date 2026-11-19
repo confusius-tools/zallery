@@ -56,24 +56,37 @@ it, with the API documentation of the package.
 The heading of the section has the id `gallery-api`, and the list has the class
 `gallery-api`, for the styles of the site.
 
-## Only the examples
+## Cards of the examples
 
 mkdocstrings lists every reference to an object: those of the user guide and of
-other docstrings too. To list only the examples, Zallery ships a template for the
-backlinks. With `api_references` on, each build of the gallery writes it to the
-`mkdocstrings` folder of the cache. Name that folder in `zensical.toml`:
+other docstrings too. To show only the examples, each as a card, Zallery ships a
+template for the backlinks. With `api_references` on, each build of the gallery writes
+it to the `mkdocstrings` folder of the cache. Name that folder in `zensical.toml`:
 
 ```toml
+[project]
+watch = [".zallery-cache/mkdocstrings"]
+
 [project.plugins.mkdocstrings]
 custom_templates = ".zallery-cache/mkdocstrings"
 ```
 
 - The template keeps the references whose anchor is `gallery-api`, the id of the
   heading that Zallery writes, and leaves out every other one.
-- It shows each as the title of its example, under "Used in the examples". The
-  link opens the example at its top.
+- It shows each example as a card, under "Examples using:". The card is the one
+  of the [gallery index](writing-examples.md#gallery-index-page): the thumbnail of each
+  color scheme, then the title. An example without a thumbnail shows the default one,
+  and an example that raised shows the error one.
+- The link opens the example at its top.
 - An object that no example uses shows nothing.
-- Build the gallery before the site, so that the folder is there.
+- Build the gallery before the site, so that the folder is there. Each build also
+  writes there the pictures of the cards, in `gallery_cards.html.jinja`.
+- The cards have the classes of the gallery index, `grid cards examples-cards`, and
+  the class `gallery-api-cards`, for the styles of the site. The stylesheet of this
+  site makes them smaller than the cards of the index.
+- `watch` makes Zensical render the API pages again when a build of the gallery
+  changes the two files. Without it, a `zensical serve` that runs, or a build that
+  keeps the cache of Zensical, shows the cards of an earlier build.
 - With another `cache` (see [Configuration](configuration.md)), the folder is
   `<cache>/mkdocstrings`.
 
@@ -86,6 +99,9 @@ api_references = true
 api_templates = "tools/mkdocstrings"
 ```
 
-- Zallery writes the file `python/material/backlinks.html.jinja` in that folder on
-  every build, and leaves the other files as they are.
-- The file is Zallery's: a change made to it by hand is lost at the next build.
+The site then names that folder in `watch` and in `custom_templates`.
+
+- Zallery writes the files `backlinks.html.jinja` and `gallery_cards.html.jinja` in
+  the `python/material` folder of that folder on every build, and leaves the other
+  files as they are.
+- The two files are Zallery's: a change made to one by hand is lost at the next build.

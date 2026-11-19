@@ -60,7 +60,8 @@ def _write_api_templates(folder: Path) -> None:
 
     Written on every build, so that the templates are those of the installed
     Zallery: they read what `zallery.render` writes. Other files of the folder are
-    left as they are.
+    left as they are, and so are the cards of the last build (`index.API_CARDS`),
+    which this build replaces once it has rendered its examples.
 
     Parameters
     ----------
@@ -68,7 +69,9 @@ def _write_api_templates(folder: Path) -> None:
         The folder a site names as the `custom_templates` of mkdocstrings.
     """
     shipped = Path(__file__).with_name("templates")
-    shutil.copytree(shipped, folder, dirs_exist_ok=True)
+    cards = folder / index.API_CARDS
+    keep = shutil.ignore_patterns(cards.name) if cards.is_file() else None
+    shutil.copytree(shipped, folder, dirs_exist_ok=True, ignore=keep)
 
 
 def _copy_dir_contents(src: Path, dst: Path) -> None:
@@ -479,10 +482,10 @@ def build_gallery(
             f"section.\n{listing}"
         )
     cache_root.mkdir(parents=True, exist_ok=True)
-    if api_package is not None:
-        _write_api_templates(
-            cache_root / API_TEMPLATES if api_templates is None else api_templates
-        )
+    if api_package is not None and api_templates is None:
+        api_templates = cache_root / API_TEMPLATES
+    if api_package is not None and api_templates is not None:
+        _write_api_templates(api_templates)
 
     rendered: list[RenderedExample] = []
     interactive = _is_interactive()
@@ -522,3 +525,6 @@ def build_gallery(
     section_pages = index.build_section_pages(rendered, root=gallery_root)
     for path, markdown in section_pages.items():
         path.write_text(markdown, encoding="utf-8")
+    if api_package is not None and api_templates is not None:
+        cards = index.build_api_cards(rendered, root=gallery_root)
+        (api_templates / index.API_CARDS).write_text(cards, encoding="utf-8")
