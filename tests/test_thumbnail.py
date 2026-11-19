@@ -108,6 +108,27 @@ def test_screenshot_html_writes_a_light_and_a_dark_picture(tmp_path: Path) -> No
 
 @pytest.mark.slow
 @pytest.mark.skipif(find_browser() is None, reason="needs a Chromium-family browser")
+def test_screenshot_html_applies_the_stylesheet_of_zallery(tmp_path: Path) -> None:
+    """A pandas table is pictured as on its page, with no style of the site."""
+    light, dark = tmp_path / "light.png", tmp_path / "dark.png"
+    html = (
+        '<table border="1" class="dataframe"><tbody>'
+        '<tr><td style="width: 300px; height: 150px"></td></tr></tbody></table>'
+    )
+
+    browser = find_browser()
+    assert browser is not None
+    assert screenshot_html(html, html, light, dark, browser=browser)
+
+    # The colors the stylesheet gives the first row of a table, in each scheme.
+    for picture, stripe in ((light, "#edf0f5"), (dark, "#1d2533")):
+        pixels = mimg.imread(picture)[..., :3]
+        striped = np.isclose(pixels, mcolors.to_rgb(stripe), atol=0.01).all(axis=-1)
+        assert striped.mean() > 0.2
+
+
+@pytest.mark.slow
+@pytest.mark.skipif(find_browser() is None, reason="needs a Chromium-family browser")
 def test_screenshot_html_takes_the_page_color_of_the_site_styles(
     tmp_path: Path,
 ) -> None:

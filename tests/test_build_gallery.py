@@ -233,6 +233,36 @@ def test_build_gallery_writes_a_page_for_each_section(
     assert "icon" not in (gallery_root / "index.md").read_text()
 
 
+def test_build_gallery_writes_the_stylesheet_of_zallery(
+    gallery_paths: GalleryPaths,
+) -> None:
+    gallery_root, built_dir, cache_root = gallery_paths
+    _seed_example(gallery_root, "io", "hello", "# %% [markdown]\n# # Hi\n")
+    build = partial(
+        build_gallery,
+        gallery_root=gallery_root,
+        built_dir=built_dir,
+        cache_root=cache_root,
+        deps_fingerprint="testdeps==1.0",
+        only=[],
+    )
+
+    build()
+
+    written = built_dir / "zallery.css"
+    shipped = files("zallery").joinpath("zallery.css").read_text(encoding="utf-8")
+    assert written.read_text(encoding="utf-8") == shipped
+    # What a page of the gallery cannot do without, and the cards under an API object.
+    assert '[data-md-color-scheme="slate"] img[src$="#only-light"]' in shipped
+    assert '[data-md-color-scheme="default"] img[src$="#only-dark"]' in shipped
+    assert ".gallery-api-cards" in shipped
+
+    # The file is Zallery's: a build writes it again.
+    written.write_text("changed by hand")
+    build()
+    assert written.read_text(encoding="utf-8") == shipped
+
+
 def test_build_gallery_refuses_an_example_named_index(
     gallery_paths: GalleryPaths,
 ) -> None:

@@ -14,6 +14,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+from zallery._types import STYLESHEET
+
 BROWSER_ENV = "ZALLERY_BROWSER"
 """Environment variable naming the browser to use: a command or a path."""
 
@@ -107,11 +109,12 @@ def _page(html: str, css: str, *, scheme: str) -> str:
     """Return a page showing one HTML output as it shows on the site.
 
     The output sits in the same wrappers and under the same color scheme attribute
-    as on an example page, so the styles of the output and of the site apply. The
-    theme variables and font sizes that site styles usually build on are defined
-    here, since the theme's own stylesheet is not available: the page has the
-    colors of a default Zensical page. The site styles come after, so a site with
-    its own page colors sets the same variables, as it does for its pages.
+    as on an example page, so the styles of the output, of Zallery and of the site
+    apply. The theme variables and font sizes that those styles usually build on
+    are defined here, since the theme's own stylesheet is not available: the page
+    has the colors of a default Zensical page. The stylesheet Zallery ships comes
+    next, then the site styles, as on the site: a site with its own page colors
+    sets the same variables, as it does for its pages.
 
     Parameters
     ----------
@@ -153,6 +156,7 @@ body {{
   color: var(--md-default-fg-color);
   font: 0.8rem/1.6 system-ui, sans-serif;
 }}
+{Path(__file__).with_name(STYLESHEET).read_text(encoding="utf-8")}
 {css}
 </style>
 <body data-md-color-scheme="{scheme}">

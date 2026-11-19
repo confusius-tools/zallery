@@ -63,6 +63,13 @@ This generates `docs/examples/index.md` (the card index),
 `docs/examples/_built/my-section/index.md` (the page of the section). Add them
 to the site navigation in `zensical.toml` like any other page.
 
+The build also writes a stylesheet, `docs/examples/_built/zallery.css`. List it in
+`zensical.toml`, with its path from the docs folder:
+
+```toml
+extra_css = ["examples/_built/zallery.css"]
+```
+
 ## Command line
 
 ```

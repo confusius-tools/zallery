@@ -19,6 +19,13 @@ template keeps, under an API object, the examples that use it (see
 `zallery.references`).
 """
 
+STYLESHEET = "zallery.css"
+"""File name of the stylesheet Zallery ships, next to this module.
+
+`build_gallery` writes it to the built folder for the site to list in `extra_css`,
+and the picture of an HTML thumbnail is taken under it.
+"""
+
 SCENE_MIME = "application/vnd.zallery.vtksz"
 """Mime type the kernel gives a pyvista scene exported for the browser.
 

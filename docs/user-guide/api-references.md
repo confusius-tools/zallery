@@ -82,8 +82,8 @@ custom_templates = ".zallery-cache/mkdocstrings"
 - Build the gallery before the site, so that the folder is there. Each build also
   writes there the pictures of the cards, in `gallery_cards.html.jinja`.
 - The cards have the classes of the gallery index, `grid cards examples-cards`, and
-  the class `gallery-api-cards`, for the styles of the site. The stylesheet of this
-  site makes them smaller than the cards of the index.
+  the class `gallery-api-cards`. The [stylesheet of Zallery](zensical-integration.md)
+  makes them smaller than the cards of the index.
 - `watch` makes Zensical render the API pages again when a build of the gallery
   changes the two files. Without it, a `zensical serve` that runs, or a build that
   keeps the cache of Zensical, shows the cards of an earlier build.

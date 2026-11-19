@@ -73,6 +73,7 @@ src/zallery/
 ├── cli.py       # `zallery` console script
 ├── config.py    # `[tool.zallery]` lookup, cache fingerprint
 ├── config.toml  # default of each `[tool.zallery]` key, read by config.py
+├── zallery.css  # styles of the pages Zallery writes, copied to the built folder
 ├── pipeline.py  # build_gallery: discover, cache, execute, render, index
 ├── discover.py  # example and section discovery
 ├── cache.py     # cache key and directory
@@ -238,6 +239,14 @@ classes when it loads the configuration.
   which the pipeline reads to pick the error thumbnail. A comment, not a file: the
   state has to come back from the cache, and nothing removes a stale file from
   `_built` once the example is fixed.
+- Zallery ships the styles of its pages, `zallery.css`, and `build_gallery`
+  copies the file to the built folder on every build. A site lists it in
+  `extra_css` before its own stylesheet, whose rules then win at equal
+  specificity: Zensical has no hook for a package to add a stylesheet. A class
+  that `render.py`, `index.py` or the backlinks template writes gets its rule
+  there, not in `docs/stylesheets/extra.css`, which holds the colors of this
+  site only. The stripe colors of a pandas table repeat the defaults of
+  `Xarray.variables`.
 - The page of a section is `index.md` in the built folder of the section, so no
   example may be named `index`: `build_gallery` refuses one before it runs
   anything. Zensical shows an icon in the navigation only from the front matter

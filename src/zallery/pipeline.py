@@ -18,7 +18,13 @@ from rich.progress import (
 )
 
 from zallery import cache, discover, execute, index, render
-from zallery._types import API_TEMPLATES, ExampleSpec, HtmlThumbnail, RenderedExample
+from zallery._types import (
+    API_TEMPLATES,
+    STYLESHEET,
+    ExampleSpec,
+    HtmlThumbnail,
+    RenderedExample,
+)
 from zallery.integration import STOCK, Integration, load, name
 
 
@@ -53,6 +59,22 @@ def _extract_title_and_summary(
             else:
                 return title, " ".join(summary_lines)
     return title, " ".join(summary_lines)
+
+
+def _write_stylesheet(built_dir: Path) -> None:
+    """Copy the stylesheet Zallery ships into the built folder.
+
+    Written on every build, so that the styles are those of the installed Zallery:
+    they are for the classes `zallery.render` and `zallery.index` write. A site
+    lists the file in `extra_css`.
+
+    Parameters
+    ----------
+    built_dir : pathlib.Path
+        The folder the pages of the examples are written to.
+    """
+    built_dir.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(Path(__file__).with_name(STYLESHEET), built_dir / STYLESHEET)
 
 
 def _write_api_templates(folder: Path) -> None:
@@ -397,8 +419,9 @@ def build_gallery(
 ) -> None:
     """Run the full pipeline and write the gallery to disk.
 
-    Next to the page of each example, it writes the index page of the gallery and
-    one page for each section (see `zallery.index`).
+    Next to the page of each example, it writes the index page of the gallery,
+    one page for each section (see `zallery.index`) and, in `built_dir`, the
+    stylesheet of these pages (`STYLESHEET`).
 
     Parameters
     ----------
@@ -482,6 +505,7 @@ def build_gallery(
             f"section.\n{listing}"
         )
     cache_root.mkdir(parents=True, exist_ok=True)
+    _write_stylesheet(built_dir)
     if api_package is not None and api_templates is None:
         api_templates = cache_root / API_TEMPLATES
     if api_package is not None and api_templates is not None:

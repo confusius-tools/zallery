@@ -42,7 +42,7 @@ from pathlib import Path
 from typing import Any
 
 import zallery
-from zallery._types import API_TEMPLATES
+from zallery._types import API_TEMPLATES, STYLESHEET
 from zallery.integration import STOCK, Integration, load, name, resolve
 
 _TABLE = "zallery"
@@ -318,6 +318,10 @@ def deps_fingerprint(config: Config) -> str:
     for path in sorted(package.rglob("*.py")):
         parts.append(f"\n# zallery/{path.relative_to(package).as_posix()}\n")
         parts.append(path.read_text(encoding="utf-8"))
+    if config.html_thumbnails:
+        # The picture of an HTML thumbnail is taken under the stylesheet.
+        parts.append(f"\n# zallery/{STYLESHEET}\n")
+        parts.append((package / STYLESHEET).read_text(encoding="utf-8"))
     for integration in config.integrations:
         cls = type(integration)
         if cls.__module__.partition(".")[0] == "zallery":

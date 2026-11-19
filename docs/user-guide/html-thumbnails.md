@@ -22,7 +22,8 @@ with a headless browser, once for each color scheme.
 - Without a browser, the build prints a warning and goes on: the examples keep the
   default thumbnail.
 - `html_thumbnail_css` lists stylesheets of your site, so that the output looks as
-  it does on its page. The theme's own stylesheet is not part of the picture;
+  it does on its page. The stylesheet of Zallery is always part of the picture, before
+  those of your site. The theme's own stylesheet is not part of the picture;
   Zallery sets the `data-md-color-scheme` attribute and the
   `--md-default-bg-color` and `--md-default-fg-color` variables that site styles
   usually build on.

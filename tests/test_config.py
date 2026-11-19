@@ -307,6 +307,18 @@ def _write_project(root: Path, table: str, project: str = "") -> None:
     (root / "pyproject.toml").write_text(f"{project}\n[tool.zallery]\n{table}\n")
 
 
+def test_deps_fingerprint_tracks_the_stylesheet_of_html_thumbnails(
+    tmp_path: Path,
+) -> None:
+    """The stylesheet Zallery ships shapes the picture of an HTML thumbnail."""
+    stylesheet = files("zallery").joinpath("zallery.css").read_text(encoding="utf-8")
+    _write_pyproject(tmp_path / "off", "")
+    _write_pyproject(tmp_path / "on", "html_thumbnails = true\n")
+
+    assert stylesheet not in deps_fingerprint(load_config(tmp_path / "off"))
+    assert stylesheet in deps_fingerprint(load_config(tmp_path / "on"))
+
+
 def test_load_config_names_no_api_package_by_default(tmp_path: Path) -> None:
     _write_project(tmp_path, "", '[project]\nname = "my-pkg"\n')
 

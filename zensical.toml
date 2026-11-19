@@ -8,7 +8,8 @@ docs_dir = "docs"
 site_dir = "site"
 repo_url = "https://github.com/confusius-tools/zallery"
 repo_name = "confusius-tools/zallery"
-extra_css = ["stylesheets/extra.css"]
+# The stylesheet Zallery writes, then the colors of this site.
+extra_css = ["examples/_built/zallery.css", "stylesheets/extra.css"]
 # The mkdocstrings templates Zallery writes: when a build of the gallery changes
 # them, the API pages are rendered again.
 watch = [".zallery-cache/mkdocstrings"]
